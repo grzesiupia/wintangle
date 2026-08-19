@@ -5,3 +5,5 @@ artifacts/
 build/Output/
 *.user
 data/
+
+__pycache__/
