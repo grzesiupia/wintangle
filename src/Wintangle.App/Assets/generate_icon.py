@@ -1,17 +1,30 @@
 #!/usr/bin/env python3
-"""Generate src/Wintangle.App/Assets/wintangle.ico (v1.0.0 release icon).
+"""Generate src/Wintangle.App/Assets/wintangle.ico (design: "sketch-tile-6").
 
-Design: a dark rounded tile (#252525, #3A3A3A 1px border) carrying a
-"wintangle" glyph made of two interlocking window frames — a big quartered
-frame with a cross divider, and a small overlapping frame that punches through
-its bottom band.
+Design derived from the user's source sketch (Assets/icon-source.jpg, a
+656x656 dark tile carrying a bright window-frames glyph) by the approved
+pipeline:
 
-Renders a 512x512 master and downscales with LANCZOS to 16/24/32/48/64/128/256,
-packing PNG-in-ICO by hand (6-byte ICONDIR + 16-byte ICONDIRENTRY per size;
-width/height byte = 0 for the 256 entry). Also writes two 512px previews
-(dark + light) for design review and copies the dark one to docs/ for README.
+1. Corner cut — rounded-rect mask with R = round(W/6) = 109; corner circle
+   centers at (R,R), (W-1-R,R), (R,H-1-R), (W-1-R,H-1-R). A pixel is cut
+   (transparent) when it lies in a corner quadrant AND dist^2 > R^2, so the
+   canvas corners fall away.
+2. Edge strip — the outermost 4px on every side is transparent (x<4,
+   x>W-5, y<4, y>H-5).
+3. Background — clean vertical gradient TOP=45 -> BOT=32 per pixel:
+   v = int(45 - 13*y/(H-1)), RGB (v,v,v).
+4. Glyph glow — glyph mask = pixels with luminance >= 100 (within the base
+   mask); glow = GaussianBlur(glyph mask, radius 8); tile lift =
+   int(glow/255 * 16) added to the gradient value.
+5. Glyph — the original source pixels where luminance >= 100 (not the
+   gradient).
 
-Run from anywhere (paths are resolved relative to this file):
+Deterministic: no randomness; fixed Pillow settings.
+
+Outputs the PNG-in-ICO wintangle.ico with 7 sizes [16,24,32,48,64,128,256]
+(LANCZOS downscale from the 656px master) plus a 512px dark preview copied to
+docs/wintangle-icon.png. Run from anywhere (paths are resolved relative to
+this file):
 
     python3 src/Wintangle.App/Assets/generate_icon.py [--preview-dir DIR]
 
@@ -19,81 +32,101 @@ Requires Pillow (pip install pillow).
 """
 
 import argparse
+import hashlib
 import io
 import os
 import struct
 import sys
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageFilter
 
 ASSETS_DIR = os.path.dirname(os.path.abspath(__file__))
+SOURCE_PATH = os.path.join(ASSETS_DIR, "icon-source.jpg")
 OUT_PATH = os.path.join(ASSETS_DIR, "wintangle.ico")
 REPO_ROOT = os.path.abspath(os.path.join(ASSETS_DIR, "..", "..", ".."))
 DOCS_PREVIEW_PATH = os.path.join(REPO_ROOT, "docs", "wintangle-icon.png")
 
-MASTER = 512
 SIZES = (16, 24, 32, 48, 64, 128, 256)
+PREVIEW = 512
 
-# Dark design (the default theme).
-TILE_FILL = "#252525"
-TILE_OUTLINE = "#3A3A3A"
-GLYPH_COLOR = (0xE0, 0xE0, 0xE0, 0xFF)
-
-# Light preview variant: same geometry, inverted palette.
-LIGHT_TILE_FILL = "#FFFFFF"
-LIGHT_TILE_OUTLINE = "#D6D6D6"
-LIGHT_GLYPH_COLOR = (0x1E, 0x1E, 0x1E, 0xFF)
-
-
-def draw_glyph_mask() -> Image.Image:
-    """'L' mask over the master canvas: 255 = glyph, 0 = punch (tile shows through)."""
-    mask = Image.new("L", (MASTER, MASTER), 0)
-    d = ImageDraw.Draw(mask)
-
-    # Big frame (quarters): outer rounded rect filled, inner punched out —
-    # leaves a 34px-thick ring ((272-204)/2 = 34).
-    d.rounded_rectangle((128, 112, 400, 384), radius=22, fill=255)
-    d.rounded_rectangle((162, 146, 366, 350), radius=10, fill=0)
-
-    # Cross divider: 34px bars with round caps (r=17 at all 4 bar ends) and a
-    # center circle at the intersection.
-    d.rectangle((162, 231, 366, 265), fill=255)
-    d.rectangle((247, 146, 281, 350), fill=255)
-    for cx, cy in ((162, 248), (366, 248), (264, 146), (264, 350)):
-        d.ellipse((cx - 17, cy - 17, cx + 17, cy + 17), fill=255)
-    d.ellipse((264 - 17, 248 - 17, 264 + 17, 248 + 17), fill=255)
-
-    # Small overlapping frame — drawn AFTER the big frame so its inner punch
-    # cuts through the big frame's bottom band (interlocking).
-    d.rounded_rectangle((224, 288, 416, 448), radius=20, fill=255)
-    d.rounded_rectangle((258, 322, 382, 414), radius=10, fill=0)
-
-    return mask
+# Gradient endpoints (grayscale, the tile background).
+GRADIENT_TOP = 45
+GRADIENT_BOTTOM = 32
+GLOW_RADIUS = 8
+GLOW_LIFT = 16
+GLYPH_LUM = 100
+EDGE_STRIP = 4
 
 
-def draw_tile(fill: str, outline: str) -> Image.Image:
-    """Full-canvas rounded tile (RGBA; corners outside the radius stay transparent)."""
-    tile = Image.new("RGBA", (MASTER, MASTER), (0, 0, 0, 0))
-    d = ImageDraw.Draw(tile)
-    d.rounded_rectangle(
-        (0, 0, MASTER - 1, MASTER - 1),
-        radius=118,
-        fill=fill,
-        outline=outline,
-        width=1,
+def build_master() -> tuple[Image.Image, int]:
+    """Renders the 656px master RGBA tile per the sketch-tile-6 pipeline.
+
+    Returns (master, glyph_pixel_count) where glyph_pixel_count is the number
+    of source pixels with luminance >= GLYPH_LUM within the base mask.
+    """
+    src = Image.open(SOURCE_PATH).convert("RGB")
+    W, H = src.size
+    assert W == H == 656, f"source must be 656x656, got {src.size}"
+
+    R = round(W / 6)  # 109
+
+    lum = src.convert("L")
+    lum_px = lum.load()
+    src_px = src.load()
+
+    # 1+2. Base mask: rounded-rect corner cut + 4px edge strip.
+    base = Image.new("L", (W, H), 255)
+    base_px = base.load()
+    quadrants = (
+        ((0, R), (0, R), (R, R)),                       # TL
+        ((W - 1 - R, W - 1), (0, R), (W - 1 - R, R)),   # TR
+        ((0, R), (H - 1 - R, H - 1), (R, H - 1 - R)),   # BL
+        ((W - 1 - R, W - 1), (H - 1 - R, H - 1), (W - 1 - R, H - 1 - R)),  # BR
     )
-    return tile
+    for y in range(H):
+        for x in range(W):
+            if x < EDGE_STRIP or x > W - 1 - EDGE_STRIP or y < EDGE_STRIP or y > H - 1 - EDGE_STRIP:
+                base_px[x, y] = 0
+                continue
+            for (x0, x1), (y0, y1), (cx, cy) in quadrants:
+                if x0 <= x <= x1 and y0 <= y <= y1:
+                    dx = x - cx
+                    dy = y - cy
+                    if dx * dx + dy * dy > R * R:
+                        base_px[x, y] = 0
+                    break
 
+    # Glyph mask: source luminance >= 100 within the base mask.
+    glyph = Image.new("L", (W, H), 0)
+    glyph_px = glyph.load()
+    glyph_count = 0
+    for y in range(H):
+        for x in range(W):
+            if base_px[x, y] and lum_px[x, y] >= GLYPH_LUM:
+                glyph_px[x, y] = 255
+                glyph_count += 1
 
-def render_master(fill: str, outline: str, glyph: tuple[int, int, int, int]) -> Image.Image:
-    """Composites the glyph color through the mask onto the tile (RGBA)."""
-    mask = draw_glyph_mask()
-    tile = draw_tile(fill, outline)
+    # Glow: blurred glyph mask; lifts the gradient near the glyph.
+    glow = glyph.filter(ImageFilter.GaussianBlur(radius=GLOW_RADIUS))
+    glow_px = glow.load()
 
-    glyph_rgba = Image.new("RGBA", (MASTER, MASTER), glyph[:3] + (0,))
-    glyph_rgba.putalpha(mask)
+    # Composite: gradient background (+glow lift) with source pixels for glyph.
+    out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    out_px = out.load()
+    for y in range(H):
+        v = int(GRADIENT_TOP - (GRADIENT_TOP - GRADIENT_BOTTOM) * y / (H - 1))
+        for x in range(W):
+            if not base_px[x, y]:
+                continue  # stays transparent
+            if glyph_px[x, y]:
+                r, g, b = src_px[x, y]
+                out_px[x, y] = (r, g, b, 255)
+            else:
+                lift = int(glow_px[x, y] / 255 * GLOW_LIFT)
+                t = v + lift
+                out_px[x, y] = (t, t, t, 255)
 
-    return Image.alpha_composite(tile, glyph_rgba)
+    return out, glyph_count
 
 
 def pack_png_ico(images: list[tuple[int, Image.Image]]) -> bytes:
@@ -134,13 +167,15 @@ def main() -> int:
     preview_dir = args.preview_dir
     os.makedirs(preview_dir, exist_ok=True)
 
-    master = render_master(TILE_FILL, TILE_OUTLINE, GLYPH_COLOR)
-    dark_preview = os.path.join(preview_dir, "wintangle-icon-dark.png")
-    master.save(dark_preview)
+    master, glyph_count = build_master()
+    W, H = master.size
 
-    light = render_master(LIGHT_TILE_FILL, LIGHT_TILE_OUTLINE, LIGHT_GLYPH_COLOR)
-    light_preview = os.path.join(preview_dir, "wintangle-icon-light.png")
-    light.save(light_preview)
+    dark_preview = os.path.join(preview_dir, "wintangle-icon-dark.png")
+    preview = master.resize((PREVIEW, PREVIEW), Image.LANCZOS)
+    preview.save(dark_preview)
+
+    os.makedirs(os.path.dirname(DOCS_PREVIEW_PATH), exist_ok=True)
+    preview.save(DOCS_PREVIEW_PATH)
 
     images = [(size, master.resize((size, size), Image.LANCZOS)) for size in SIZES]
     ico = pack_png_ico(images)
@@ -149,8 +184,7 @@ def main() -> int:
 
     # Self-validation: parse the ICONDIR table (Pillow's ICO reader only
     # exposes the best-match frame, so the header is checked by hand) and
-    # confirm each PNG blob decodes to the declared size. Also verify the
-    # master has an opaque tile center.
+    # confirm each PNG blob decodes to the declared size.
     with open(OUT_PATH, "rb") as f:
         raw = f.read()
     reserved, ico_type, count = struct.unpack_from("<HHH", raw, 0)
@@ -167,17 +201,21 @@ def main() -> int:
             assert png.size == (size, size), f"png blob {size} decodes as {png.size}"
     assert sizes == set(SIZES), f"ico sizes mismatch: {sizes} != {set(SIZES)}"
 
-    center_alpha = master.getpixel((MASTER // 2, MASTER // 2))[3]
-    assert center_alpha != 0, "tile-center alpha is 0"
+    center_alpha = master.getpixel((W // 2, H // 2))[3]
+    assert center_alpha == 255, f"tile-center alpha is {center_alpha}, expected 255"
+    corner_tl = master.getpixel((5, 5))[3]
+    corner_br = master.getpixel((W - 6, H - 6))[3]
+    assert corner_tl == 0, f"corner (5,5) alpha is {corner_tl}, expected 0"
+    assert corner_br == 0, f"corner ({W - 6},{H - 6}) alpha is {corner_br}, expected 0"
 
-    os.makedirs(os.path.dirname(DOCS_PREVIEW_PATH), exist_ok=True)
-    master.save(DOCS_PREVIEW_PATH)
+    md5 = hashlib.md5(ico).hexdigest()
 
-    print(f"wrote {OUT_PATH} ({len(ico)} bytes, sizes {sorted(sizes)})")
+    print(f"wrote {OUT_PATH} ({len(ico)} bytes, sizes {sorted(sizes)}, md5 {md5})")
     print(f"wrote {dark_preview}")
-    print(f"wrote {light_preview}")
     print(f"wrote {DOCS_PREVIEW_PATH}")
-    print(f"validated: {len(sizes)} frames, tile-center alpha={center_alpha}")
+    print(f"validated: {len(sizes)} ico frames, tile-center alpha={center_alpha}")
+    print(f"validated: corners transparent (alpha 0 at (5,5) and ({W - 6},{H - 6}))")
+    print(f"master: {W}x{H}, glyph pixels (lum>={GLYPH_LUM} within mask): {glyph_count}")
     return 0
 
 
