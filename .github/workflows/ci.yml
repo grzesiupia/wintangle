@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Core tests are OS-independent (geometry, hotkeys, config) — run on Linux.
+  test-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # NOTE: setup-dotnet's `cache: true` requires a packages.lock.json in
+      # the workspace root and hard-fails when it is absent. This repo has no
+      # lock file and only a handful of test packages, so caching is omitted.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test Wintangle.Core
+        run: dotnet test tests/Wintangle.Core.Tests -c Release
+
+  # WPF + net8.0-windows builds natively on windows-latest.
+  # (EnableWindowsTargeting is already set in the csproj; harmless here.)
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build solution
+        run: dotnet build Wintangle.sln -c Release
+
+      - name: Publish self-contained
+        run: dotnet publish src/Wintangle.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o artifacts/publish
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wintangle-win-x64
+          path: artifacts/publish

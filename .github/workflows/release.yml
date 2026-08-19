@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Publish self-contained
+        run: dotnet publish src/Wintangle.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o artifacts/publish
+
+      # Chocolatey package "innosetup" (verified: community.chocolatey.org/packages/innosetup)
+      # installs the official Inno Setup 6 under "C:\Program Files (x86)\Inno Setup 6".
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      # ISCC is referenced by full path rather than relying on PATH, which the
+      # runner process does not refresh after the choco install above.
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc "build\setup.iss" "/DAppVersion=$version"
+
+      # The raw self-contained single-file exe gets a versioned name so both
+      # assets (installer + raw binary) are distinct in the release.
+      - name: Stage raw binary
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          Copy-Item "artifacts\publish\Wintangle.App.exe" "wintangle-$version-win-x64.exe"
+
+      - name: Create GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "build/Output/wintangle-setup.exe" \
+            "wintangle-${GITHUB_REF_NAME#v}-win-x64.exe" \
+            --title "wintangle $GITHUB_REF_NAME" \
+            --generate-notes

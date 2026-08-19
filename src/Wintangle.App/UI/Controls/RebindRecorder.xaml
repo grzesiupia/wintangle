@@ -1,0 +1,45 @@
+<UserControl x:Class="Wintangle.App.UI.Controls.RebindRecorder"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="ComboText"
+                       VerticalAlignment="Center"
+                       MinWidth="90" />
+            <TextBlock x:Name="RecordingText"
+                       Grid.Column="1"
+                       Text="Press keys… (Esc to cancel)"
+                       VerticalAlignment="Center"
+                       Foreground="#2B6CB0"
+                       Visibility="Collapsed" />
+            <Button x:Name="RecordButton"
+                    Grid.Column="2"
+                    Content="Record"
+                    Margin="6,0,0,0"
+                    Padding="10,2"
+                    Click="RecordButton_Click" />
+            <Button x:Name="CancelButton"
+                    Grid.Column="2"
+                    Content="Cancel"
+                    Margin="6,0,0,0"
+                    Padding="10,2"
+                    Visibility="Collapsed"
+                    Click="CancelButton_Click" />
+        </Grid>
+        <TextBlock x:Name="ErrorText"
+                   Grid.Row="1"
+                   Margin="0,3,0,0"
+                   Foreground="#C42B1C"
+                   TextWrapping="Wrap"
+                   Visibility="Collapsed" />
+    </Grid>
+</UserControl>

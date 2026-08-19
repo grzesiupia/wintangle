@@ -1,0 +1,103 @@
+<Window x:Class="Wintangle.App.UI.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="wintangle Settings"
+        Width="620" Height="540"
+        MinWidth="540" MinHeight="420"
+        WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="True">
+    <Grid Margin="12">
+        <TabControl>
+            <!-- General: gaps, autostart, restore defaults -->
+            <TabItem Header="General">
+                <StackPanel Margin="16,14">
+                    <!-- Slider Maximum matches GapSettings.MaxGap (Core). -->
+                    <TextBlock Text="Window gap (px between tiled windows)" FontWeight="SemiBold" />
+                    <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Slider x:Name="WindowGapSlider"
+                                Minimum="0" Maximum="50"
+                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                TickPlacement="BottomRight"
+                                VerticalAlignment="Center"
+                                ValueChanged="WindowGapSlider_ValueChanged" />
+                        <TextBlock x:Name="WindowGapValue"
+                                   Grid.Column="1"
+                                   MinWidth="40"
+                                   TextAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Margin="12,0,0,0" />
+                    </Grid>
+
+                    <TextBlock Text="Edge gap (px from screen edges)" FontWeight="SemiBold" Margin="0,18,0,0" />
+                    <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Slider x:Name="EdgeGapSlider"
+                                Minimum="0" Maximum="50"
+                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                TickPlacement="BottomRight"
+                                VerticalAlignment="Center"
+                                ValueChanged="EdgeGapSlider_ValueChanged" />
+                        <TextBlock x:Name="EdgeGapValue"
+                                   Grid.Column="1"
+                                   MinWidth="40"
+                                   TextAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Margin="12,0,0,0" />
+                    </Grid>
+
+                    <CheckBox x:Name="AutostartCheckBox"
+                              Content="Start wintangle when I log in"
+                              Margin="0,22,0,0"
+                              Checked="AutostartCheckBox_Checked"
+                              Unchecked="AutostartCheckBox_Unchecked" />
+
+                    <Button x:Name="RestoreDefaultsButton"
+                            Content="Restore defaults…"
+                            Margin="0,26,0,0"
+                            Padding="14,4"
+                            HorizontalAlignment="Left"
+                            Click="RestoreDefaultsButton_Click" />
+                </StackPanel>
+            </TabItem>
+
+            <!-- Shortcuts: one row per action with an inline recorder -->
+            <TabItem Header="Shortcuts">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="ShortcutsHost" Margin="8" />
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Ignored apps: manual add/remove -->
+            <TabItem Header="Ignored apps">
+                <StackPanel Margin="16,14">
+                    <TextBlock Text="Windows of ignored apps are never moved by wintangle." TextWrapping="Wrap" />
+                    <ListBox x:Name="IgnoredList" Height="220" Margin="0,10,0,10" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox x:Name="IgnoreAddBox"
+                                 Width="220"
+                                 ToolTip="Process name, e.g. notepad"
+                                 KeyDown="IgnoreAddBox_KeyDown" />
+                        <Button Content="Add"
+                                Margin="6,0,0,0"
+                                Padding="14,2"
+                                Click="IgnoreAddButton_Click" />
+                        <Button Content="Remove"
+                                Margin="6,0,0,0"
+                                Padding="14,2"
+                                Click="IgnoreRemoveButton_Click" />
+                    </StackPanel>
+                    <TextBlock Text="Add apps via tray: right-click icon → Ignore this app"
+                               Foreground="Gray"
+                               Margin="0,12,0,0" />
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>
