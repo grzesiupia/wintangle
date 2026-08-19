@@ -19,7 +19,7 @@
                        Grid.Column="1"
                        Text="Press keys… (Esc to cancel)"
                        VerticalAlignment="Center"
-                       Foreground="#2B6CB0"
+                       Foreground="{DynamicResource Brush.RecordingFg}"
                        Visibility="Collapsed" />
             <Button x:Name="RecordButton"
                     Grid.Column="2"
@@ -38,7 +38,7 @@
         <TextBlock x:Name="ErrorText"
                    Grid.Row="1"
                    Margin="0,3,0,0"
-                   Foreground="#C42B1C"
+                   Foreground="{DynamicResource Brush.Danger}"
                    TextWrapping="Wrap"
                    Visibility="Collapsed" />
     </Grid>

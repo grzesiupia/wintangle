@@ -1,145 +1,185 @@
 #!/usr/bin/env python3
-"""Generate src/Wintangle.App/Assets/wintangle.ico.
+"""Generate src/Wintangle.App/Assets/wintangle.ico (v1.0.0 release icon).
 
-Writes a valid 32-bit BMP-in-ICO file with two images (16x16 and 32x32).
-The design is a 2x2 window-tiling grid (four colored panes separated by
-transparent gaps) on a transparent background.
+Design: a dark rounded tile (#252525, #3A3A3A 1px border) carrying a
+"wintangle" glyph made of two interlocking window frames — a big quartered
+frame with a cross divider, and a small overlapping frame that punches through
+its bottom band.
 
-Run from the repo root (or anywhere; output path is resolved relative to
-this file):
+Renders a 512x512 master and downscales with LANCZOS to 16/24/32/48/64/128/256,
+packing PNG-in-ICO by hand (6-byte ICONDIR + 16-byte ICONDIRENTRY per size;
+width/height byte = 0 for the 256 entry). Also writes two 512px previews
+(dark + light) for design review and copies the dark one to docs/ for README.
 
-    python3 src/Wintangle.App/Assets/generate_icon.py
+Run from anywhere (paths are resolved relative to this file):
 
-Pure stdlib: only `struct` and `os` are used (no zlib needed — this is
-BMP-in-ICO, not PNG-in-ICO).
+    python3 src/Wintangle.App/Assets/generate_icon.py [--preview-dir DIR]
+
+Requires Pillow (pip install pillow).
 """
 
+import argparse
+import io
 import os
 import struct
+import sys
 
-OUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wintangle.ico")
+from PIL import Image, ImageDraw
 
-# RGBA colors for the four panes (top-left, top-right, bottom-left, bottom-right).
-PANE_COLORS = [
-    (0x66, 0x43, 0xF5, 0xFF),  # indigo
-    (0x22, 0x96, 0xFA, 0xFF),  # blue
-    (0xA8, 0x55, 0xF7, 0xFF),  # purple
-    (0xFA, 0xB4, 0x28, 0xFF),  # amber
-]
+ASSETS_DIR = os.path.dirname(os.path.abspath(__file__))
+OUT_PATH = os.path.join(ASSETS_DIR, "wintangle.ico")
+REPO_ROOT = os.path.abspath(os.path.join(ASSETS_DIR, "..", "..", ".."))
+DOCS_PREVIEW_PATH = os.path.join(REPO_ROOT, "docs", "wintangle-icon.png")
 
-TRANSPARENT = (0, 0, 0, 0)
+MASTER = 512
+SIZES = (16, 24, 32, 48, 64, 128, 256)
 
+# Dark design (the default theme).
+TILE_FILL = "#252525"
+TILE_OUTLINE = "#3A3A3A"
+GLYPH_COLOR = (0xE0, 0xE0, 0xE0, 0xFF)
 
-def draw_pane_icon(width: int, height: int):
-    """Returns a 2x2 grid icon as a top-down list of RGBA rows."""
-    margin = max(1, width // 8)
-    gap = max(1, width // 16)
-    cols, rows = 2, 2
-    cell_w = (width - 2 * margin - (cols - 1) * gap) // cols
-    cell_h = (height - 2 * margin - (rows - 1) * gap) // rows
-    corner_r = margin
-
-    def inside_rounded_rect(x: int, y: int) -> bool:
-        if x < margin or x >= width - margin or y < margin or y >= height - margin:
-            return False
-        # rounded corners (only near the four corners of the outer rect)
-        if x < margin + corner_r and y < margin + corner_r:
-            return (x - margin - corner_r) ** 2 + (y - margin - corner_r) ** 2 <= corner_r ** 2
-        if x >= width - margin - corner_r and y < margin + corner_r:
-            return (x - (width - margin - corner_r)) ** 2 + (y - margin - corner_r) ** 2 <= corner_r ** 2
-        if x < margin + corner_r and y >= height - margin - corner_r:
-            return (x - margin - corner_r) ** 2 + (y - (height - margin - corner_r)) ** 2 <= corner_r ** 2
-        if x >= width - margin - corner_r and y >= height - margin - corner_r:
-            return (x - (width - margin - corner_r)) ** 2 + (y - (height - margin - corner_r)) ** 2 <= corner_r ** 2
-        return True
-
-    rows_out = []
-    for y in range(height):
-        row = []
-        for x in range(width):
-            if not inside_rounded_rect(x, y):
-                row.append(TRANSPARENT)
-                continue
-            col = (x - margin) // (cell_w + gap)
-            r = (y - margin) // (cell_h + gap)
-            ox = (x - margin) % (cell_w + gap)
-            oy = (y - margin) % (cell_h + gap)
-            if col >= cols or r >= rows or ox >= cell_w or oy >= cell_h:
-                row.append(TRANSPARENT)  # seam gap between panes
-            else:
-                row.append(PANE_COLORS[r * cols + col])
-        rows_out.append(row)
-    return rows_out
+# Light preview variant: same geometry, inverted palette.
+LIGHT_TILE_FILL = "#FFFFFF"
+LIGHT_TILE_OUTLINE = "#D6D6D6"
+LIGHT_GLYPH_COLOR = (0x1E, 0x1E, 0x1E, 0xFF)
 
 
-def to_bgra_bottom_up(rows):
-    """Flattens top-down RGBA rows into bottom-up BGRA pixel bytes."""
-    out = bytearray()
-    for row in reversed(rows):
-        for r, g, b, a in row:
-            out += bytes((b, g, r, a))
-    return bytes(out)
+def draw_glyph_mask() -> Image.Image:
+    """'L' mask over the master canvas: 255 = glyph, 0 = punch (tile shows through)."""
+    mask = Image.new("L", (MASTER, MASTER), 0)
+    d = ImageDraw.Draw(mask)
+
+    # Big frame (quarters): outer rounded rect filled, inner punched out —
+    # leaves a 34px-thick ring ((272-204)/2 = 34).
+    d.rounded_rectangle((128, 112, 400, 384), radius=22, fill=255)
+    d.rounded_rectangle((162, 146, 366, 350), radius=10, fill=0)
+
+    # Cross divider: 34px bars with round caps (r=17 at all 4 bar ends) and a
+    # center circle at the intersection.
+    d.rectangle((162, 231, 366, 265), fill=255)
+    d.rectangle((247, 146, 281, 350), fill=255)
+    for cx, cy in ((162, 248), (366, 248), (264, 146), (264, 350)):
+        d.ellipse((cx - 17, cy - 17, cx + 17, cy + 17), fill=255)
+    d.ellipse((264 - 17, 248 - 17, 264 + 17, 248 + 17), fill=255)
+
+    # Small overlapping frame — drawn AFTER the big frame so its inner punch
+    # cuts through the big frame's bottom band (interlocking).
+    d.rounded_rectangle((224, 288, 416, 448), radius=20, fill=255)
+    d.rounded_rectangle((258, 322, 382, 414), radius=10, fill=0)
+
+    return mask
 
 
-def and_mask(rows):
-    """1bpp AND mask (all zeros — alpha channel already carries transparency)."""
-    width = len(rows[0])
-    height = len(rows)
-    row_bytes = ((width + 31) // 32) * 4
-    return b"\x00" * (row_bytes * height)
+def draw_tile(fill: str, outline: str) -> Image.Image:
+    """Full-canvas rounded tile (RGBA; corners outside the radius stay transparent)."""
+    tile = Image.new("RGBA", (MASTER, MASTER), (0, 0, 0, 0))
+    d = ImageDraw.Draw(tile)
+    d.rounded_rectangle(
+        (0, 0, MASTER - 1, MASTER - 1),
+        radius=118,
+        fill=fill,
+        outline=outline,
+        width=1,
+    )
+    return tile
 
 
-def build_ico(images):
-    """images: list of (width, height, rows) top-down RGBA rows."""
-    entries = []
-    datas = []
-    for width, height, rows in images:
-        xor = to_bgra_bottom_up(rows)
-        mask = and_mask(rows)
-        header = struct.pack(
-            "<IiiHHIIiiII",
-            40,               # biSize
-            width,            # biWidth
-            height * 2,       # biHeight (XOR + AND)
-            1,                # biPlanes
-            32,               # biBitCount
-            0,                # biCompression (BI_RGB)
-            0,                # biSizeImage (ignored for 32bpp)
-            0, 0,             # biXPelsPerMeter / biYPelsPerMeter
-            0, 0,             # biClrUsed / biClrImportant
-        )
-        datas.append(header + xor + mask)
+def render_master(fill: str, outline: str, glyph: tuple[int, int, int, int]) -> Image.Image:
+    """Composites the glyph color through the mask onto the tile (RGBA)."""
+    mask = draw_glyph_mask()
+    tile = draw_tile(fill, outline)
 
+    glyph_rgba = Image.new("RGBA", (MASTER, MASTER), glyph[:3] + (0,))
+    glyph_rgba.putalpha(mask)
+
+    return Image.alpha_composite(tile, glyph_rgba)
+
+
+def pack_png_ico(images: list[tuple[int, Image.Image]]) -> bytes:
+    """PNG-in-ICO: 6-byte ICONDIR + one 16-byte ICONDIRENTRY per image + PNG blobs."""
+    blobs = []
+    for _, image in images:
+        buf = io.BytesIO()
+        image.save(buf, format="PNG")
+        blobs.append(buf.getvalue())
+
+    header = struct.pack("<HHH", 0, 1, len(images))
     offset = 6 + 16 * len(images)
-    for (width, height, _), data in zip(images, datas):
+    entries = []
+    for (size, _), blob in zip(images, blobs):
         entries.append(
             struct.pack(
                 "<BBBBHHII",
-                width & 0xFF if width < 256 else 0,
-                height & 0xFF if height < 256 else 0,
-                0,        # color count
-                0,        # reserved
-                1,        # planes
-                32,       # bit count
-                len(data),
+                0 if size >= 256 else size,  # width byte (0 means 256)
+                0 if size >= 256 else size,  # height byte (0 means 256)
+                0,                           # color count
+                0,                           # reserved
+                1,                           # planes
+                32,                          # bit count
+                len(blob),
                 offset,
             )
         )
-        offset += len(data)
+        offset += len(blob)
 
-    return struct.pack("<HHH", 0, 1, len(images)) + b"".join(entries) + b"".join(datas)
+    return header + b"".join(entries) + b"".join(blobs)
 
 
-def main():
-    images = [
-        (16, 16, draw_pane_icon(16, 16)),
-        (32, 32, draw_pane_icon(32, 32)),
-    ]
-    ico = build_ico(images)
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Generate wintangle.ico + previews")
+    parser.add_argument("--preview-dir", default="/tmp/opencode/icon-preview/")
+    args = parser.parse_args()
+
+    preview_dir = args.preview_dir
+    os.makedirs(preview_dir, exist_ok=True)
+
+    master = render_master(TILE_FILL, TILE_OUTLINE, GLYPH_COLOR)
+    dark_preview = os.path.join(preview_dir, "wintangle-icon-dark.png")
+    master.save(dark_preview)
+
+    light = render_master(LIGHT_TILE_FILL, LIGHT_TILE_OUTLINE, LIGHT_GLYPH_COLOR)
+    light_preview = os.path.join(preview_dir, "wintangle-icon-light.png")
+    light.save(light_preview)
+
+    images = [(size, master.resize((size, size), Image.LANCZOS)) for size in SIZES]
+    ico = pack_png_ico(images)
     with open(OUT_PATH, "wb") as f:
         f.write(ico)
-    print(f"wrote {OUT_PATH} ({len(ico)} bytes)")
+
+    # Self-validation: parse the ICONDIR table (Pillow's ICO reader only
+    # exposes the best-match frame, so the header is checked by hand) and
+    # confirm each PNG blob decodes to the declared size. Also verify the
+    # master has an opaque tile center.
+    with open(OUT_PATH, "rb") as f:
+        raw = f.read()
+    reserved, ico_type, count = struct.unpack_from("<HHH", raw, 0)
+    assert reserved == 0 and ico_type == 1, f"bad ICONDIR header: {reserved}, {ico_type}"
+    assert count == len(SIZES), f"ico frame count mismatch: {count} != {len(SIZES)}"
+    sizes = set()
+    for i in range(count):
+        entry = struct.unpack_from("<BBBBHHII", raw, 6 + 16 * i)
+        size = entry[0] if entry[0] != 0 else 256
+        sizes.add(size)
+        length, offset = entry[6], entry[7]
+        blob = raw[offset:offset + length]
+        with Image.open(io.BytesIO(blob)) as png:
+            assert png.size == (size, size), f"png blob {size} decodes as {png.size}"
+    assert sizes == set(SIZES), f"ico sizes mismatch: {sizes} != {set(SIZES)}"
+
+    center_alpha = master.getpixel((MASTER // 2, MASTER // 2))[3]
+    assert center_alpha != 0, "tile-center alpha is 0"
+
+    os.makedirs(os.path.dirname(DOCS_PREVIEW_PATH), exist_ok=True)
+    master.save(DOCS_PREVIEW_PATH)
+
+    print(f"wrote {OUT_PATH} ({len(ico)} bytes, sizes {sorted(sizes)})")
+    print(f"wrote {dark_preview}")
+    print(f"wrote {light_preview}")
+    print(f"wrote {DOCS_PREVIEW_PATH}")
+    print(f"validated: {len(sizes)} frames, tile-center alpha={center_alpha}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

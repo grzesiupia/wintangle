@@ -251,6 +251,66 @@ public class ConfigStoreTests : IDisposable
         Assert.Empty(sanitized.Shortcuts);
         Assert.Empty(sanitized.IgnoredApps);
         Assert.False(sanitized.AutoStart);
+        Assert.Equal(ConfigModel.DefaultTheme, sanitized.Theme);
+    }
+
+    [Fact]
+    public void DefaultTheme_IsDark()
+    {
+        Assert.Equal("Dark", ConfigModel.DefaultTheme);
+        Assert.Equal(ConfigModel.ThemeDark, ConfigModel.DefaultTheme);
+        Assert.Equal(ConfigModel.ThemeDark, new ConfigModel().Theme);
+        Assert.Equal(ConfigModel.ThemeDark, ConfigStore.Default().Theme);
+    }
+
+    [Fact]
+    public void Theme_RoundTrip_Light()
+    {
+        var path = ConfigPath();
+        ConfigStore.Save(path, new ConfigModel { Theme = "Light" });
+
+        var loaded = ConfigStore.Load(path);
+
+        Assert.Equal("Light", loaded.Theme);
+    }
+
+    [Fact]
+    public void Theme_Unknown_DefaultsDark()
+    {
+        var path = ConfigPath();
+        File.WriteAllText(path, """{ "theme": "Neon" }""");
+
+        var model = ConfigStore.Load(path);
+
+        Assert.Equal(ConfigModel.ThemeDark, model.Theme);
+    }
+
+    [Fact]
+    public void Theme_CaseInsensitive_Normalizes()
+    {
+        var lowerPath = ConfigPath();
+        File.WriteAllText(lowerPath, """{ "theme": "dark" }""");
+        Assert.Equal(ConfigModel.ThemeDark, ConfigStore.Load(lowerPath).Theme);
+
+        var upperPath = ConfigPath();
+        File.WriteAllText(upperPath, """{ "theme": "LIGHT" }""");
+        Assert.Equal(ConfigModel.ThemeLight, ConfigStore.Load(upperPath).Theme);
+
+        var paddedPath = ConfigPath();
+        File.WriteAllText(paddedPath, """{ "theme": "  dark  " }""");
+        Assert.Equal(ConfigModel.ThemeDark, ConfigStore.Load(paddedPath).Theme);
+    }
+
+    [Fact]
+    public void Theme_NullOrWrongType_DefaultsDark()
+    {
+        var nullPath = ConfigPath();
+        File.WriteAllText(nullPath, """{ "theme": null }""");
+        Assert.Equal(ConfigModel.ThemeDark, ConfigStore.Load(nullPath).Theme);
+
+        var numberPath = ConfigPath();
+        File.WriteAllText(numberPath, """{ "theme": 42 }""");
+        Assert.Equal(ConfigModel.ThemeDark, ConfigStore.Load(numberPath).Theme);
     }
 
     [Fact]

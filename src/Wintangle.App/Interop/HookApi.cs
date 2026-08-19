@@ -46,4 +46,17 @@ internal static class HookApi
 
     [DllImport("user32.dll")]
     internal static extern short GetAsyncKeyState(int vKey);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern uint SendInput(uint cInputs, [In] INPUT[] pInputs, int cbSize);
+}
+
+/// <summary>SendInput KEYBDINPUT.dwFlags values (KEYEVENTF_*).</summary>
+internal static class SendInputFlags
+{
+    /// <summary>0x0000 — the default: wVk is treated as a virtual key code.</summary>
+    public const uint KEYEVENTF_VIRTUALKEY = 0x0000;
+
+    public const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
+    public const uint KEYEVENTF_KEYUP = 0x0002;
 }

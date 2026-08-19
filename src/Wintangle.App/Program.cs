@@ -85,6 +85,26 @@ public static class Program
 
         s_config = new ConfigService(s_state, s_hook, AppPaths.ConfigPath);
 
+        // Apply theme changes live. ThemeChanged can fire on the watcher
+        // thread (external config edits), so marshal to the UI dispatcher
+        // before touching Application resources.
+        s_config.ThemeChanged += theme =>
+        {
+            if (Application.Current is not App app)
+            {
+                return;
+            }
+
+            if (app.Dispatcher.CheckAccess())
+            {
+                app.ApplyTheme(theme);
+            }
+            else
+            {
+                app.Dispatcher.BeginInvoke(() => app.ApplyTheme(theme));
+            }
+        };
+
         s_menu = new TrayMenu(s_hostHwnd, s_state, s_config, (action, gaps) => s_dispatcher.Apply(action, gaps), Quit, ShowSettingsWindow);
 
         bool hookInstalled = s_hook.Start();
@@ -96,6 +116,11 @@ public static class Program
         // registry autostart to the config's AutoStart flag.
         s_config.Load();
         s_config.ReconcileAutoStart();
+
+        // Apply the persisted theme (Dark by default). ThemeChanged already
+        // fired during Load; this direct call covers the case where the
+        // dispatcher queue has not been pumped yet, and is a no-op afterwards.
+        (Application.Current as App)?.ApplyTheme(s_config.Current.Theme);
 
         // Runs the WPF dispatcher message loop. No window is shown — the
         // hidden host window routes tray notifications; hotkeys dispatch on
@@ -159,7 +184,25 @@ public static class Program
             return;
         }
 
-        SettingsWindow.ShowOrActivate(s_config, s_hook);
+        // Capture the foreground window BEFORE activating settings: preset
+        // applies must target the window the user was working in, not the
+        // settings window itself. The hidden host window never counts as a
+        // target (it is only foreground during the tray-menu dance).
+        var foreground = WindowApi.GetForegroundWindow();
+        if (foreground == s_hostHwnd)
+        {
+            foreground = IntPtr.Zero;
+        }
+
+        Action<HotkeyAction> apply = action =>
+        {
+            if (foreground != IntPtr.Zero)
+            {
+                s_dispatcher?.ApplyToHwnd(foreground, action, s_state!.Gaps);
+            }
+        };
+
+        SettingsWindow.ShowOrActivate(s_config, s_hook, apply);
     }
 
     private static void Quit()

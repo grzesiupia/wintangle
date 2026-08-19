@@ -8,10 +8,22 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\wintangle.ico</ApplicationIcon>
     <StartupObject>Wintangle.App.Program</StartupObject>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0</FileVersion>
+    <Product>wintangle</Product>
+    <Company>wintangle contributors</Company>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Wintangle.Core\Wintangle.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- App icon as an embedded resource (settings window header). Uses
+         EmbeddedResource rather than Resource: the WPF pipeline silently
+         drops a <Resource> item that duplicates ApplicationIcon. -->
+    <EmbeddedResource Include="Assets\wintangle.ico" LogicalName="wintangle.ico" />
   </ItemGroup>
 
 </Project>

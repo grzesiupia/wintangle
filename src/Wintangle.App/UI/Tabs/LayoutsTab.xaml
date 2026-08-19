@@ -1,0 +1,100 @@
+<UserControl x:Class="Wintangle.App.UI.Tabs.LayoutsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Left: workspace presets & layouts -->
+        <Grid Margin="0,0,16,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock Text="WORKSPACE PRESETS &amp; LAYOUTS"
+                       FontSize="12"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource Brush.TextSecondary}" />
+            <ScrollViewer Grid.Row="1"
+                          Margin="0,10,0,0"
+                          VerticalScrollBarVisibility="Auto">
+                <UniformGrid x:Name="CardsGrid" Columns="4" />
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Right: active windows & rule builder -->
+        <Grid Grid.Column="1" Margin="16,0,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="ACTIVE WINDOWS &amp; RULE BUILDER"
+                           FontSize="12"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource Brush.TextSecondary}"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Content="Refresh"
+                        Padding="12,2"
+                        Click="RefreshWindowsButton_Click" />
+            </Grid>
+            <ListBox x:Name="WindowsList"
+                     Grid.Row="1"
+                     MinHeight="150"
+                     Margin="0,10,0,0" />
+            <Border Grid.Row="2"
+                    Margin="0,12,0,0"
+                    Background="{DynamicResource Brush.Surface}"
+                    BorderBrush="{DynamicResource Brush.Border}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12">
+                <StackPanel>
+                    <TextBlock Text="Rule builder"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource Brush.TextPrimary}" />
+                    <TextBlock Text="Automatic layouts per app"
+                               FontSize="12"
+                               Foreground="{DynamicResource Brush.TextTertiary}"
+                               Margin="0,2,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <ComboBox x:Name="RuleAppCombo"
+                                  Width="130"
+                                  IsEnabled="False" />
+                        <ComboBox x:Name="RuleLayoutCombo"
+                                  Width="130"
+                                  Margin="8,0,0,0"
+                                  IsEnabled="False" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="ELSE"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Brush.TextSecondary}" />
+                        <ComboBox x:Name="RuleElseCombo"
+                                  Width="130"
+                                  Margin="8,0,0,0"
+                                  IsEnabled="False" />
+                    </StackPanel>
+                    <Button Content="Add rule"
+                            IsEnabled="False"
+                            Margin="0,12,0,0"
+                            Padding="16,4"
+                            HorizontalAlignment="Left" />
+                    <TextBlock Text="Coming soon"
+                               FontSize="12"
+                               Foreground="{DynamicResource Brush.TextTertiary}"
+                               Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

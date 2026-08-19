@@ -219,4 +219,42 @@ public class SlotCalculatorTests
             Assert.True(rect.Right <= work.Right && rect.Bottom <= work.Bottom, $"{layout}: inside work area");
         }
     }
+
+    [Fact]
+    public void GetGrid_AllSlotLayouts()
+    {
+        // All 16 slot layouts: (columns, rows, column index, row index).
+        var expected = new Dictionary<SlotLayout, (int Columns, int Rows, int Column, int Row)>
+        {
+            [SlotLayout.CenterHalf] = (1, 1, 0, 0),
+
+            [SlotLayout.HalfLeft] = (2, 1, 0, 0),
+            [SlotLayout.HalfRight] = (2, 1, 1, 0),
+
+            [SlotLayout.QuarterTopLeft] = (2, 2, 0, 0),
+            [SlotLayout.QuarterTopRight] = (2, 2, 1, 0),
+            [SlotLayout.QuarterBottomLeft] = (2, 2, 0, 1),
+            [SlotLayout.QuarterBottomRight] = (2, 2, 1, 1),
+
+            [SlotLayout.ThirdLeft] = (3, 1, 0, 0),
+            [SlotLayout.ThirdCenter] = (3, 1, 1, 0),
+            [SlotLayout.ThirdRight] = (3, 1, 2, 0),
+
+            [SlotLayout.SixthTopLeft] = (3, 2, 0, 0),
+            [SlotLayout.SixthTopCenter] = (3, 2, 1, 0),
+            [SlotLayout.SixthTopRight] = (3, 2, 2, 0),
+            [SlotLayout.SixthBottomLeft] = (3, 2, 0, 1),
+            [SlotLayout.SixthBottomCenter] = (3, 2, 1, 1),
+            [SlotLayout.SixthBottomRight] = (3, 2, 2, 1),
+        };
+
+        // The enum must stay in sync with the grid map (16 slots, no monitor moves).
+        Assert.Equal(16, Enum.GetValues<SlotLayout>().Length);
+        Assert.Equal(expected.Count, Enum.GetValues<SlotLayout>().Length);
+
+        foreach (var (layout, grid) in expected)
+        {
+            Assert.Equal(grid, SlotCalculator.GetGrid(layout));
+        }
+    }
 }

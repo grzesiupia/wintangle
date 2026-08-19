@@ -118,6 +118,17 @@ public static class ConfigStore
         var autoStart = TryGetPropertyCaseInsensitive(root, "autoStart", out var autoStartEl)
             && autoStartEl.ValueKind == JsonValueKind.True;
 
+        // Theme: only a string is read; null/wrong-type is ignored → default.
+        // Normalized here so Load output is always normalized (Sanitize's
+        // NormalizeTheme stays as an idempotent safety net).
+        var theme = ConfigModel.DefaultTheme;
+        if (TryGetPropertyCaseInsensitive(root, "theme", out var themeEl)
+            && themeEl.ValueKind == JsonValueKind.String
+            && themeEl.GetString() is { } themeStr)
+        {
+            theme = NormalizeTheme(themeStr);
+        }
+
         var shortcuts = new List<ShortcutBinding>();
         if (TryGetPropertyCaseInsensitive(root, "shortcuts", out var shortcutsEl)
             && shortcutsEl.ValueKind == JsonValueKind.Array)
@@ -149,9 +160,26 @@ public static class ConfigStore
             WindowGap = windowGap,
             EdgeGap = edgeGap,
             AutoStart = autoStart,
+            Theme = theme,
             Shortcuts = shortcuts,
             IgnoredApps = ignoredApps,
         });
+    }
+
+    /// <summary>
+    /// Normalizes a theme key: case-insensitive "Dark"/"Light"; anything else
+    /// (null, whitespace, unknown values) maps to the default dark theme.
+    /// </summary>
+    public static string NormalizeTheme(string? theme)
+    {
+        if (string.IsNullOrWhiteSpace(theme))
+        {
+            return ConfigModel.ThemeDark;
+        }
+
+        return string.Equals(theme.Trim(), ConfigModel.ThemeLight, StringComparison.OrdinalIgnoreCase)
+            ? ConfigModel.ThemeLight
+            : ConfigModel.ThemeDark;
     }
 
     /// <summary>Case-insensitive property lookup (mirrors the old serializer's <c>PropertyNameCaseInsensitive</c>).</summary>
@@ -347,6 +375,7 @@ public static class ConfigStore
             Version = ConfigModel.CurrentVersion,
             WindowGap = windowGap,
             EdgeGap = edgeGap,
+            Theme = NormalizeTheme(raw.Theme),
             Shortcuts = shortcuts,
             IgnoredApps = ignored,
         };

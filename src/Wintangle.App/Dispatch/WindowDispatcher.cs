@@ -30,6 +30,9 @@ internal sealed class WindowDispatcher
         _selfElevated = OperatingSystem.IsWindows() && ElevationApi.IsProcessElevated();
     }
 
+    /// <summary>
+    /// Applies <paramref name="action"/> to the current foreground window.
+    /// </summary>
     public void Apply(HotkeyAction action, GapSettings gaps)
     {
         if (!OperatingSystem.IsWindows())
@@ -39,7 +42,11 @@ internal sealed class WindowDispatcher
 
         try
         {
-            ApplyCore(action, gaps);
+            var hwnd = WindowApi.GetForegroundWindow();
+            if (hwnd != IntPtr.Zero)
+            {
+                ApplyCore(hwnd, action, gaps);
+            }
         }
         catch (Exception ex)
         {
@@ -47,14 +54,30 @@ internal sealed class WindowDispatcher
         }
     }
 
-    private void ApplyCore(HotkeyAction action, GapSettings gaps)
+    /// <summary>
+    /// Applies <paramref name="action"/> to an explicit window handle (used by
+    /// the settings window's preset apply, which must target the window that
+    /// owned the foreground before the settings window opened).
+    /// </summary>
+    public void ApplyToHwnd(IntPtr hwnd, HotkeyAction action, GapSettings gaps)
     {
-        var hwnd = WindowApi.GetForegroundWindow();
-        if (hwnd == IntPtr.Zero)
+        if (!OperatingSystem.IsWindows() || hwnd == IntPtr.Zero)
         {
             return;
         }
 
+        try
+        {
+            ApplyCore(hwnd, action, gaps);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[wintangle] ApplyToHwnd({action}) failed: {ex}");
+        }
+    }
+
+    private void ApplyCore(IntPtr hwnd, HotkeyAction action, GapSettings gaps)
+    {
         var target = WindowTarget.TryCreate(hwnd);
         if (target == null)
         {

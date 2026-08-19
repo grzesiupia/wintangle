@@ -2,15 +2,15 @@
 ;
 ; Build from the repository root after publishing:
 ;   dotnet publish src/Wintangle.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o artifacts/publish
-;   iscc build\setup.iss /DAppVersion=0.1.0
+;   iscc build\setup.iss /DAppVersion=1.0.0
 ;
 ; The publish output directory can be overridden:
-;   iscc build\setup.iss /DAppVersion=0.1.0 /DSourceDir=C:\path\to\publish
+;   iscc build\setup.iss /DAppVersion=1.0.0 /DSourceDir=C:\path\to\publish
 ;
 ; Relative paths are resolved against this script's directory (build\).
 
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "1.0.0"
 #endif
 
 #ifndef SourceDir
@@ -36,6 +36,8 @@ OutputBaseFilename=wintangle-setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+; Release icon: the same Assets/wintangle.ico that is embedded in the exe.
+SetupIconFile=..\src\Wintangle.App\Assets\wintangle.ico
 ; The app is published as win-x64 self-contained; restrict to 64-bit (incl. ARM64 emulation).
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -48,6 +50,9 @@ CloseApplications=yes
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
+; No IconFilename set: Inno Setup auto-picks the first icon embedded in the
+; .exe (Assets/wintangle.ico via ApplicationIcon in the csproj — verified
+; assumption; keep the Icons section in sync if that changes).
 Name: "{autoprograms}\wintangle"; Filename: "{app}\Wintangle.App.exe"
 
 [Run]

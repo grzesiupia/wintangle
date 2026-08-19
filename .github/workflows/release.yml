@@ -36,14 +36,8 @@ jobs:
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           & $iscc "build\setup.iss" "/DAppVersion=$version"
 
-      # The raw self-contained single-file exe gets a versioned name so both
-      # assets (installer + raw binary) are distinct in the release.
-      - name: Stage raw binary
-        shell: pwsh
-        run: |
-          $version = $env:GITHUB_REF_NAME.TrimStart('v')
-          Copy-Item "artifacts\publish\Wintangle.App.exe" "wintangle-$version-win-x64.exe"
-
+      # The raw self-contained exe is intentionally NOT staged: releases carry
+      # only the installer (single-file binary is embedded in the setup).
       - name: Create GitHub release
         shell: bash
         env:
@@ -51,6 +45,5 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             "build/Output/wintangle-setup.exe" \
-            "wintangle-${GITHUB_REF_NAME#v}-win-x64.exe" \
             --title "wintangle $GITHUB_REF_NAME" \
             --generate-notes

@@ -42,6 +42,13 @@ internal static class NativeMethods
     // ---- Virtual key codes ----
     public const byte VK_ESCAPE = 0x1B;
 
+    /// <summary>
+    /// Dummy key injected between a swallowed Win combo's Win keydown and its
+    /// Win keyup, so the shell never sees a "clean" Win release and doesn't
+    /// pop the Start menu. No real app binds F24.
+    /// </summary>
+    public const byte VK_F24 = 0x87;
+
     // ---- SendMessageTimeout flags ----
     public const uint SMTO_ABORTIFHUNG = 0x0002;
     public const int SendMessageTimeoutDefaultTimeout = 500;

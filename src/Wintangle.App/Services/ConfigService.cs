@@ -36,6 +36,7 @@ internal sealed class ConfigService : IDisposable
     private ConfigModel _current = ConfigStore.Default();
     private Timer? _debounceTimer;
     private volatile bool _disposed;
+    private volatile string? _appliedTheme;
 
     public ConfigService(RuntimeState state, KeyboardHook hook, string path)
     {
@@ -80,6 +81,25 @@ internal sealed class ConfigService : IDisposable
             }
         }
     }
+
+    /// <summary>Currently configured theme key ("Dark" or "Light").</summary>
+    public string Theme
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _current.Theme;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Raised whenever the applied theme changes (including the initial load,
+    /// when the persisted theme differs from the previous run's). May fire on
+    /// the watcher thread — consumers must marshal to the UI thread.
+    /// </summary>
+    public event Action<string>? ThemeChanged;
 
     /// <summary>
     /// Startup load: reads the config (defaults + file creation when missing/
@@ -257,6 +277,19 @@ internal sealed class ConfigService : IDisposable
     }
 
     /// <summary>
+    /// Persists a new theme ("Dark"/"Light"). Unknown values normalize to the
+    /// default; <see cref="ThemeChanged"/> fires when the applied theme differs.
+    /// </summary>
+    public void SetTheme(string theme)
+    {
+        var normalized = ConfigStore.NormalizeTheme(theme);
+        lock (_lock)
+        {
+            SaveAndApply(_current with { Theme = normalized });
+        }
+    }
+
+    /// <summary>
     /// Resets everything to factory defaults: gaps, autostart off, default
     /// shortcuts, empty ignored-apps list. Mirrors the autostart change to the
     /// registry (config is the source of truth, but the registry is the
@@ -398,6 +431,18 @@ internal sealed class ConfigService : IDisposable
         _hook.Table = BuildTable(model.Shortcuts);
         _state.UpdateGaps(new GapSettings(model.WindowGap, model.EdgeGap));
         _state.UpdateIgnored(BuildIgnoredSet(model.IgnoredApps));
+
+        // Theme swap + notification. Raised while the caller may be holding
+        // _lock (mutation paths such as SetTheme/RestoreDefaults run
+        // ApplyToRuntime inside the lock) or from the watcher thread (external
+        // edits). Subscribers MUST NOT block or call back into ConfigService
+        // synchronously — the current subscriber (App.ApplyTheme via Program)
+        // is non-blocking and marshals to the UI thread.
+        if (model.Theme != _appliedTheme)
+        {
+            _appliedTheme = model.Theme;
+            ThemeChanged?.Invoke(model.Theme);
+        }
     }
 
     /// <summary>

@@ -1,5 +1,7 @@
 # wintangle
 
+![wintangle](docs/wintangle-icon.png)
+
 A keyboard-only window manager for Windows 11. Tile the focused window with a
 single chord — no dragging, no zone configuration, no per-layout shortcut
 guesswork.
@@ -49,9 +51,7 @@ installs per-user (no administrator rights needed), adds a Start Menu shortcut,
 and optionally launches wintangle when you finish.
 
 The installer is **unsigned**, so SmartScreen will show a warning. Click
-**More info → Run anyway**. The raw self-contained `wintangle-<version>-win-x64.exe`
-is also attached to each release if you prefer to run it directly without
-installing.
+**More info → Run anyway**.
 
 Requirements: Windows 11 x64 (Windows 10 64-bit may work but is not tested),
 .NET 8 runtime is **not** needed — the published build is self-contained.
@@ -85,6 +85,7 @@ Example:
   "windowGap": 8,
   "edgeGap": 0,
   "autoStart": false,
+  "theme": "Dark",
   "shortcuts": [
     { "action": 1, "virtualKey": 37, "modifiers": 5 }
   ],
@@ -100,6 +101,7 @@ Example:
 | `windowGap` | number | Gap between adjacent windows, px. Range 0–50. |
 | `edgeGap` | number | Gap between a window and the screen edge, px. Range 0–50. |
 | `autoStart` | bool | Run at logon (writes the `HKCU\...\Run` key). |
+| `theme` | string | "Dark" or "Light", default "Dark". |
 | `shortcuts` | array | Rebound hotkeys. Empty array means "use the default table". |
 | `ignoredApps` | array | Process names wintangle never tiles (e.g. `"notepad.exe"`, lowercase). |
 
@@ -129,10 +131,13 @@ Defaults are 8 px window gap and 0 px edge gap.
 
 - **Tray icon** — right-click the tray icon to tile the foreground window from
   a menu, ignore the current app, toggle autostart, open Settings, or quit.
-- **Settings app** — gap sliders, autostart toggle, and a shortcuts tab with an
-  inline **rebind recorder**: press Record, hit the combo, done. Recording
-  rejects invalid combos (no modifiers, bare modifiers). Combos like Win+L are
-  OS-reserved and will not work; the recorder cannot detect these.
+- **Settings app** — a 7-tab window: **Window Layouts** shows preset cards
+  for every tiling slot, **Keyboard Shortcuts** has an inline **rebind
+  recorder** (press Record, hit the combo, done), and **Settings** covers gaps,
+  theme, autostart, and ignored apps. Advanced Rules, Mouse Actions, Plugins,
+  and Workspaces are placeholders for later releases. Recording rejects invalid
+  combos (no modifiers, bare modifiers); combos like Win+L are OS-reserved and
+  will not work — the recorder cannot detect these.
 - **Per-app ignore** — "Ignore this app" from the tray; ignored windows are
   never tiled. Editable in `ignoredApps`.
 - **Autostart** — runs at logon via the `HKCU` Run key (per-user, no admin).

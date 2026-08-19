@@ -40,16 +40,6 @@ internal sealed class KeyboardHook
     private volatile uint _threadId;
     private volatile IntPtr _hook = IntPtr.Zero;
 
-    // Hook-thread-confined state.
-    // After a Win-modifier combo is swallowed, the matching Win key-release
-    // must also be swallowed (a lone Win release pops the Start menu). Stored
-    // as the specific Win vk + a timestamp so the swallow expires and only the
-    // matching release is eaten.
-    private byte _pendingWinKeyUpVk;
-    private long _pendingWinKeyUpAt;
-
-    private const long PendingWinKeyUpTimeoutMs = 1000;
-
     public KeyboardHook(HotkeyTable table)
     {
         _matcher = new HotkeyMatcher(table);
@@ -268,7 +258,7 @@ internal sealed class KeyboardHook
                 return HookApi.CallNextHookEx(_hook, nCode, wParam, lParam);
             }
 
-            ArmWinKeyUpSwallow(mods);
+            InjectWinComboBreak(mods);
             KeyCaptured?.Invoke(vk, mods);
             return Swallow();
         }
@@ -277,12 +267,20 @@ internal sealed class KeyboardHook
         switch (result.Kind)
         {
             case HotkeyMatchResultKind.Matched:
-                ArmWinKeyUpSwallow(mods);
+                InjectWinComboBreak(mods);
                 ActionMatched?.Invoke(result.Action);
                 return Swallow();
 
             case HotkeyMatchResultKind.RepeatSuppressed:
-                ArmWinKeyUpSwallow(mods);
+                // Holding the key: auto-repeat arrives with no Win keyup in
+                // between, so no fresh F24 break is needed (the previous one
+                // still sits between Win down and Win up). But a rapid
+                // re-press (release + re-press within the repeat window) has
+                // already produced a Win keyup, so the shell would see a clean
+                // Win down/up pair with no key between and pop the Start menu.
+                // InjectWinComboBreak is a no-op when Win is not held, so it is
+                // safe on both paths.
+                InjectWinComboBreak(mods);
                 return Swallow();
 
             default:
@@ -292,45 +290,61 @@ internal sealed class KeyboardHook
 
     private IntPtr ProcessKeyUp(in KBDLLHOOKSTRUCT kbd, int nCode, IntPtr wParam, IntPtr lParam)
     {
-        // START-MENU FIX: after a Win-combo was swallowed, swallow the release
-        // of the matching Win key so the lone Win release doesn't pop the Start
-        // menu. The swallow expires after PendingWinKeyUpTimeoutMs and only
-        // matches the exact Win key that was part of the swallowed combo.
-        if (kbd.vkCode is NativeMethods.VK_LWIN or NativeMethods.VK_RWIN
-            && kbd.vkCode == _pendingWinKeyUpVk
-            && _pendingWinKeyUpVk != 0
-            && Environment.TickCount64 - _pendingWinKeyUpAt <= PendingWinKeyUpTimeoutMs)
-        {
-            _pendingWinKeyUpVk = 0;
-            _pendingWinKeyUpAt = 0;
-            return Swallow();
-        }
-
+        // All key releases pass through unchanged. The F24 dummy press injected
+        // when a Win combo was swallowed sits between the Win keydown and this
+        // Win keyup, so the shell never sees a "clean" Win release and does not
+        // pop the Start menu. The real Win keyup flows through naturally, so
+        // Win never stays logically pressed.
         return HookApi.CallNextHookEx(_hook, nCode, wParam, lParam);
     }
 
     /// <summary>
-    /// Arms the Start-menu fix when the swallowed combo involved the Win
-    /// modifier: remembers which Win key was down and when the combo was
-    /// swallowed, so the corresponding key-release can be eaten.
+    /// Injects a dummy VK_F24 keypress (down + up in one SendInput call) so
+    /// the shell observes a key event between the Win keydown and Win keyup of
+    /// a swallowed Win combo. The Start menu only opens when Win is released
+    /// without any intervening key event, so this suppresses the pop while the
+    /// genuine Win keyup still reaches the shell. No-op for combos without the
+    /// Win modifier.
     /// </summary>
-    private void ArmWinKeyUpSwallow(KeyModifiers mods)
+    private static void InjectWinComboBreak(KeyModifiers mods)
     {
         if ((mods & KeyModifiers.Win) == 0)
         {
             return;
         }
 
-        var winKey = IsKeyDown(NativeMethods.VK_LWIN)
-            ? NativeMethods.VK_LWIN
-            : IsKeyDown(NativeMethods.VK_RWIN)
-                ? NativeMethods.VK_RWIN
-                : (byte)0;
-
-        if (winKey != 0)
+        var inputs = new[]
         {
-            _pendingWinKeyUpVk = winKey;
-            _pendingWinKeyUpAt = Environment.TickCount64;
+            new INPUT
+            {
+                type = INPUT.INPUT_KEYBOARD,
+                U = new InputUnion
+                {
+                    ki = new KEYBDINPUT
+                    {
+                        wVk = NativeMethods.VK_F24,
+                        dwFlags = SendInputFlags.KEYEVENTF_VIRTUALKEY,
+                    },
+                },
+            },
+            new INPUT
+            {
+                type = INPUT.INPUT_KEYBOARD,
+                U = new InputUnion
+                {
+                    ki = new KEYBDINPUT
+                    {
+                        wVk = NativeMethods.VK_F24,
+                        dwFlags = SendInputFlags.KEYEVENTF_VIRTUALKEY | SendInputFlags.KEYEVENTF_KEYUP,
+                    },
+                },
+            },
+        };
+
+        uint injected = HookApi.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+        if (injected == 0)
+        {
+            Debug.WriteLine($"[wintangle] F24 break injection failed (Win32 error {Marshal.GetLastWin32Error()}).");
         }
     }
 

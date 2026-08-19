@@ -87,7 +87,9 @@ internal sealed class TrayMenu
 
             // Classic tray-menu dance: the menu must not steal activation from
             // the calling window, and the WM_NULL message dismisses the menu
-            // immediately after a selection.
+            // immediately after a selection. Remember who owned the foreground
+            // before the dance so it can be given back when the menu closes.
+            var previousForeground = WindowApi.GetForegroundWindow();
             TrayApi.SetForegroundWindow(_hostHwnd);
             uint command = TrayApi.TrackPopupMenu(
                 menu,
@@ -98,6 +100,10 @@ internal sealed class TrayMenu
                 _hostHwnd,
                 IntPtr.Zero);
             TrayApi.PostMessageW(_hostHwnd, NativeMethods.WM_NULL, IntPtr.Zero, IntPtr.Zero);
+
+            // Without this, the hidden host keeps the foreground after the menu
+            // closes and keystrokes land nowhere until the user clicks.
+            RestoreForeground(previousForeground);
 
             HandleCommand(command);
         }
@@ -214,6 +220,49 @@ internal sealed class TrayMenu
         {
             _config.AddIgnored(name);
         }
+    }
+
+    /// <summary>
+    /// Returns foreground to the window that owned it before the tray menu was
+    /// shown. A direct SetForegroundWindow can be refused (foreground lock), so
+    /// fall back to attaching to the current foreground thread and retrying,
+    /// then BringWindowToTop as a last resort.
+    /// </summary>
+    private void RestoreForeground(IntPtr previous)
+    {
+        if (previous == IntPtr.Zero || previous == _hostHwnd)
+        {
+            return;
+        }
+
+        if (TrayApi.SetForegroundWindow(previous))
+        {
+            return;
+        }
+
+        // Foreground lock: the OS refused the direct call. Attach to the
+        // current foreground thread (the shell owns the lock), retry, then
+        // detach before anything else runs.
+        var fgThread = WindowApi.GetWindowThreadProcessId(WindowApi.GetForegroundWindow(), out _);
+        var currentThread = HookApi.GetCurrentThreadId();
+        var attached = fgThread != 0 && fgThread != currentThread
+            && WindowApi.AttachThreadInput(currentThread, fgThread, true);
+        if (attached)
+        {
+            try
+            {
+                if (TrayApi.SetForegroundWindow(previous))
+                {
+                    return;
+                }
+            }
+            finally
+            {
+                WindowApi.AttachThreadInput(currentThread, fgThread, false);
+            }
+        }
+
+        WindowApi.BringWindowToTop(previous);
     }
 
     private static string? GetForegroundProcessName()

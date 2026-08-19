@@ -79,7 +79,12 @@ public static class SlotCalculator
         return new Rectangle(x, y, width, height);
     }
 
-    private static (int Columns, int Rows, int Column, int Row) GetGrid(SlotLayout layout) =>
+    /// <summary>
+    /// The grid a <see cref="SlotLayout"/> occupies inside its work area:
+    /// total columns, total rows, and the 0-based column/row of the slot.
+    /// Exposed for UI previews that need to draw faithful slot shapes.
+    /// </summary>
+    public static (int Columns, int Rows, int Column, int Row) GetGrid(SlotLayout layout) =>
         layout switch
         {
             SlotLayout.CenterHalf => (1, 1, 0, 0),

@@ -24,6 +24,15 @@ public sealed record ConfigModel
     /// <summary>Current config schema version.</summary>
     public const int CurrentVersion = 1;
 
+    /// <summary>Dark theme key (the default).</summary>
+    public const string ThemeDark = "Dark";
+
+    /// <summary>Light theme key.</summary>
+    public const string ThemeLight = "Light";
+
+    /// <summary>Default theme — dark.</summary>
+    public const string DefaultTheme = ThemeDark;
+
     /// <summary>Default window gap (px), also used when the config value is out of range.</summary>
     public const int DefaultWindowGap = 8;
 
@@ -37,6 +46,11 @@ public sealed record ConfigModel
     public int EdgeGap { get; init; } = DefaultEdgeGap;
 
     public bool AutoStart { get; init; }
+
+    /// <summary>
+    /// Theme key ("Dark" or "Light"); unknown values normalize to the default.
+    /// </summary>
+    public string Theme { get; init; } = DefaultTheme;
 
     /// <summary>
     /// User hotkey bindings. Empty means "use the default table".
