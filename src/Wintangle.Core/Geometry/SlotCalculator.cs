@@ -7,17 +7,20 @@ namespace Wintangle.Core.Geometry;
 /// layout inside a work area.
 /// </summary>
 /// <remarks>
-/// Per-axis math (origin-relative, works with negative work-area origins):
+/// Real tiling math — identical to the design's per-edge rule in
+/// <see cref="SlotFraction"/> (the settings preview and the actual tiling
+/// agree): a slot edge that touches the work-area boundary applies the
+/// <see cref="GapSettings.EdgeGap"/>; an interior edge applies the
+/// <see cref="GapSettings.WindowGap"/>. Per side:
 /// <code>
-/// inset   = EdgeGap + WindowGap                      // boundary inset per side
-/// usable  = Size − 2·inset − (N−1)·WindowGap          // space for N columns/rows
-/// cell    = usable / N                                // integer division
-/// offset_i = inset + i·(cell + WindowGap)             // start of column/row i
+/// left   = workArea.X + f.L·W + (f.L == 0 ? EdgeGap : WindowGap)
+/// right  = workArea.X + f.R·W − (f.R == 1 ? EdgeGap : WindowGap)
+/// top    = workArea.Y + f.T·H + (f.T == 0 ? EdgeGap : WindowGap)
+/// bottom = workArea.Y + f.B·H − (f.B == 1 ? EdgeGap : WindowGap)
 /// </code>
-/// All cells in an axis share the same size, so the seam gap between two
-/// adjacent cells is exactly <see cref="GapSettings.WindowGap"/>: each cell
-/// contributes WindowGap/2 at the seam (leftover integer-division pixels are
-/// dropped at the far edge, keeping seams exact).
+/// Because each window applies the full window gap on its interior edge, the
+/// seam between two adjacent slots is exactly 2·WindowGap — the full configured
+/// window gap lies between the windows.
 /// </remarks>
 public static class SlotCalculator
 {
@@ -26,37 +29,27 @@ public static class SlotCalculator
     /// <paramref name="workArea"/>.
     /// </summary>
     /// <remarks>
-    /// Never throws: on degenerate work areas (e.g. smaller than 2·(E+G)) a
-    /// best-effort 1×1 rectangle pinned inside the work area is returned.
+    /// Never throws: on degenerate work areas (e.g. smaller than the gaps) a
+    /// best-effort rectangle pinned inside the work area, at least 1×1, is
+    /// returned.
     /// </remarks>
     public static Rectangle ComputeSlot(Rectangle workArea, SlotLayout layout, GapSettings gaps)
     {
         ArgumentNullException.ThrowIfNull(gaps);
 
-        (int columns, int rows, int column, int row) = GetGrid(layout);
+        (double l, double t, double r, double b) = SlotFraction.GetFraction(layout);
 
-        int inset = gaps.EdgeGap + gaps.WindowGap;
+        double left = workArea.X + (l * workArea.Width) + (l == 0 ? gaps.EdgeGap : gaps.WindowGap);
+        double right = workArea.X + (r * workArea.Width) - (r == 1 ? gaps.EdgeGap : gaps.WindowGap);
+        double top = workArea.Y + (t * workArea.Height) + (t == 0 ? gaps.EdgeGap : gaps.WindowGap);
+        double bottom = workArea.Y + (b * workArea.Height) - (b == 1 ? gaps.EdgeGap : gaps.WindowGap);
 
-        int usableWidth = workArea.Width - (2 * inset) - ((columns - 1) * gaps.WindowGap);
-        int usableHeight = workArea.Height - (2 * inset) - ((rows - 1) * gaps.WindowGap);
+        int x = (int)Math.Round(left);
+        int y = (int)Math.Round(top);
+        int width = (int)Math.Max(1, Math.Round(right - left));
+        int height = (int)Math.Max(1, Math.Round(bottom - top));
 
-        int cellWidth = usableWidth / columns;
-        int cellHeight = usableHeight / rows;
-
-        if (cellWidth < 1)
-        {
-            cellWidth = 1;
-        }
-
-        if (cellHeight < 1)
-        {
-            cellHeight = 1;
-        }
-
-        int x = workArea.X + inset + (column * (cellWidth + gaps.WindowGap));
-        int y = workArea.Y + inset + (row * (cellHeight + gaps.WindowGap));
-
-        return ClampToWorkArea(new Rectangle(x, y, cellWidth, cellHeight), workArea);
+        return ClampToWorkArea(new Rectangle(x, y, width, height), workArea);
     }
 
     /// <summary>
@@ -78,36 +71,4 @@ public static class SlotCalculator
 
         return new Rectangle(x, y, width, height);
     }
-
-    /// <summary>
-    /// The grid a <see cref="SlotLayout"/> occupies inside its work area:
-    /// total columns, total rows, and the 0-based column/row of the slot.
-    /// Exposed for UI previews that need to draw faithful slot shapes.
-    /// </summary>
-    public static (int Columns, int Rows, int Column, int Row) GetGrid(SlotLayout layout) =>
-        layout switch
-        {
-            SlotLayout.CenterHalf => (1, 1, 0, 0),
-
-            SlotLayout.HalfLeft => (2, 1, 0, 0),
-            SlotLayout.HalfRight => (2, 1, 1, 0),
-
-            SlotLayout.QuarterTopLeft => (2, 2, 0, 0),
-            SlotLayout.QuarterTopRight => (2, 2, 1, 0),
-            SlotLayout.QuarterBottomLeft => (2, 2, 0, 1),
-            SlotLayout.QuarterBottomRight => (2, 2, 1, 1),
-
-            SlotLayout.ThirdLeft => (3, 1, 0, 0),
-            SlotLayout.ThirdCenter => (3, 1, 1, 0),
-            SlotLayout.ThirdRight => (3, 1, 2, 0),
-
-            SlotLayout.SixthTopLeft => (3, 2, 0, 0),
-            SlotLayout.SixthTopCenter => (3, 2, 1, 0),
-            SlotLayout.SixthTopRight => (3, 2, 2, 0),
-            SlotLayout.SixthBottomLeft => (3, 2, 0, 1),
-            SlotLayout.SixthBottomCenter => (3, 2, 1, 1),
-            SlotLayout.SixthBottomRight => (3, 2, 2, 1),
-
-            _ => throw new ArgumentOutOfRangeException(nameof(layout), layout, "Unknown slot layout."),
-        };
 }

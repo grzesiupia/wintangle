@@ -2,11 +2,12 @@ namespace Wintangle.Core.Geometry;
 
 /// <summary>
 /// Gap configuration used when tiling windows.
-/// <para><see cref="WindowGap"/> — space left between two adjacent windows
-/// (each window contributes half of it at the seam).</para>
+/// <para><see cref="WindowGap"/> — space left between two adjacent windows.
+/// Each window applies the full window gap on its interior edge, so the seam
+/// between two neighbors is exactly WindowGap.</para>
 /// <para><see cref="EdgeGap"/> — space left between a window and the screen
-/// edge (plus the window gap, i.e. total boundary inset per side is
-/// EdgeGap + WindowGap).</para>
+/// edge. Boundary-touching edges apply only the edge gap (the window gap is
+/// not added on top).</para>
 /// </summary>
 public sealed record GapSettings
 {

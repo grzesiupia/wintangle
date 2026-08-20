@@ -1,7 +1,7 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Wintangle.App.Interop;
+using Wintangle.App.Services;
 using Wintangle.Core.Hotkeys;
 
 namespace Wintangle.App.Hooks;
@@ -74,7 +74,7 @@ internal sealed class KeyboardHook
     /// <summary>
     /// Starts the hook thread. Returns true only when the hook thread confirms
     /// the install succeeded; false on install failure. On failure the app
-    /// continues without shortcuts (message pumped via Debug.WriteLine).
+    /// continues without shortcuts (failure is logged).
     /// </summary>
     public bool Start()
     {
@@ -133,7 +133,7 @@ internal sealed class KeyboardHook
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] KeyboardHook.Stop join failed: {ex.Message}");
+            Log.Warn($"KeyboardHook.Stop join failed: {ex.Message}");
         }
 
         // _hook is volatile, so the plain read is already a volatile read.
@@ -159,7 +159,7 @@ internal sealed class KeyboardHook
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] hook install failed: {ex.Message}");
+            Log.Error("Keyboard hook install failed", ex);
         }
 
         // Signal install result (success or failure) so Start() doesn't wait
@@ -168,7 +168,7 @@ internal sealed class KeyboardHook
 
         if (_hook == IntPtr.Zero)
         {
-            Debug.WriteLine("[wintangle] low-level keyboard hook not installed; shortcuts disabled.");
+            Log.Error("low-level keyboard hook not installed; shortcuts disabled");
             return;
         }
 
@@ -182,7 +182,7 @@ internal sealed class KeyboardHook
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] hook message loop error: {ex.Message}");
+            Log.Error("Keyboard hook message loop error", ex);
         }
         finally
         {
@@ -192,7 +192,7 @@ internal sealed class KeyboardHook
                 _hook = IntPtr.Zero;
             }
 
-            Debug.WriteLine("[wintangle] keyboard hook thread exited.");
+            Log.Info("keyboard hook thread exited");
         }
     }
 
@@ -344,7 +344,7 @@ internal sealed class KeyboardHook
         uint injected = HookApi.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
         if (injected == 0)
         {
-            Debug.WriteLine($"[wintangle] F24 break injection failed (Win32 error {Marshal.GetLastWin32Error()}).");
+            Log.Warn($"F24 break injection failed (Win32 error {Marshal.GetLastWin32Error()}).");
         }
     }
 

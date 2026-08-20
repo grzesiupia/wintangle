@@ -12,34 +12,38 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock x:Name="ComboText"
-                       VerticalAlignment="Center"
-                       MinWidth="90" />
-            <TextBlock x:Name="RecordingText"
-                       Grid.Column="1"
-                       Text="Press keys… (Esc to cancel)"
-                       VerticalAlignment="Center"
-                       Foreground="{DynamicResource Brush.RecordingFg}"
-                       Visibility="Collapsed" />
+            <!-- bind-box: keycap chips container; blink/recording/danger states
+                 are driven in code (Opacity animation, BorderBrush swap). -->
+            <Border x:Name="BindBox"
+                    MinWidth="150"
+                    MinHeight="26"
+                    Padding="6,4"
+                    BorderThickness="1"
+                    CornerRadius="7"
+                    VerticalAlignment="Center"
+                    BorderBrush="{DynamicResource Brush.Border}">
+                <StackPanel x:Name="ChipsHost" Orientation="Horizontal" />
+            </Border>
             <Button x:Name="RecordButton"
-                    Grid.Column="2"
+                    Grid.Column="1"
+                    Margin="8,0,0,0"
                     Content="Record"
-                    Margin="6,0,0,0"
-                    Padding="10,2"
+                    Style="{DynamicResource RecordButton}"
                     Click="RecordButton_Click" />
             <Button x:Name="CancelButton"
                     Grid.Column="2"
+                    Margin="8,0,0,0"
                     Content="Cancel"
-                    Margin="6,0,0,0"
-                    Padding="10,2"
+                    Style="{DynamicResource CancelButton}"
                     Visibility="Collapsed"
                     Click="CancelButton_Click" />
         </Grid>
         <TextBlock x:Name="ErrorText"
                    Grid.Row="1"
-                   Margin="0,3,0,0"
-                   Foreground="{DynamicResource Brush.Danger}"
+                   Margin="0,6,0,0"
+                   FontSize="12"
                    TextWrapping="Wrap"
+                   Foreground="{DynamicResource Brush.Danger}"
                    Visibility="Collapsed" />
     </Grid>
 </UserControl>

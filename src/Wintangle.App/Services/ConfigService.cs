@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.IO;
 using Wintangle.App.Hooks;
 using Wintangle.Core.Config;
@@ -66,7 +65,7 @@ internal sealed class ConfigService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] config watcher unavailable: {ex.Message}");
+            Log.Warn($"config watcher unavailable: {ex.Message}");
         }
     }
 
@@ -130,7 +129,7 @@ internal sealed class ConfigService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] config reload failed: {ex.Message}");
+            Log.Warn($"config reload failed: {ex.Message}");
         }
     }
 
@@ -194,7 +193,7 @@ internal sealed class ConfigService : IDisposable
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[wintangle] autostart registry update failed: {ex.Message}");
+                Log.Warn($"autostart registry update failed: {ex.Message}");
             }
         }
     }
@@ -310,7 +309,7 @@ internal sealed class ConfigService : IDisposable
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[wintangle] autostart registry reset failed: {ex.Message}");
+                Log.Warn($"autostart registry reset failed: {ex.Message}");
             }
         }
     }
@@ -341,7 +340,7 @@ internal sealed class ConfigService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] autostart reconcile failed: {ex.Message}");
+            Log.Warn($"autostart reconcile failed: {ex.Message}");
         }
     }
 
@@ -386,7 +385,7 @@ internal sealed class ConfigService : IDisposable
             // Timer creation/Change and the FileSystemWatcher are guarded by
             // the lock, but keep the callback exception-proof anyway: an
             // unhandled exception from a watcher event is unrecoverable.
-            Debug.WriteLine($"[wintangle] config watcher callback failed: {ex.Message}");
+            Log.Warn($"config watcher callback failed: {ex.Message}");
         }
     }
 
@@ -415,7 +414,7 @@ internal sealed class ConfigService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] config save failed: {ex.Message}");
+            Log.Warn($"config save failed: {ex.Message}");
         }
 
         ApplyToRuntime(model);
@@ -459,6 +458,7 @@ internal sealed class ConfigService : IDisposable
         {
             // Should be unreachable (deduped above), but guard anyway: a
             // duplicate combination would otherwise take down the reload.
+            Log.Warn("BuildTable: duplicate hotkey combination detected — falling back to default table");
             return DefaultHotkeys.Create();
         }
     }
@@ -514,7 +514,7 @@ internal sealed class ConfigService : IDisposable
 
             if (used.Contains(custom))
             {
-                Debug.WriteLine($"[wintangle] shortcut for {action} ({HotkeyLabels.Format(custom)}) conflicts with another binding — keeping the existing one.");
+                Log.Warn($"shortcut for {action} ({HotkeyLabels.Format(custom)}) conflicts with another binding — keeping the existing one.");
                 continue;
             }
 
@@ -573,7 +573,7 @@ internal sealed class ConfigService : IDisposable
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[wintangle] config watcher dispose failed: {ex.Message}");
+                Log.Warn($"config watcher dispose failed: {ex.Message}");
             }
         }
 

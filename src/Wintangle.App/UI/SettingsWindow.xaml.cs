@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using Wintangle.App.Hooks;
@@ -12,17 +14,19 @@ using Wintangle.Core.Hotkeys;
 namespace Wintangle.App.UI;
 
 /// <summary>
-/// Settings dialog: seven themed tabs (layouts, advanced rules, shortcuts,
-/// mouse actions, plugins, workspaces, settings). At most one instance exists
-/// at a time (<see cref="ShowOrActivate"/>); each open is a fresh window
-/// populated from the current config — no stale state. All changes persist
-/// immediately through <see cref="ConfigService"/>.
+/// Settings dialog: three themed tabs (window layouts, keyboard shortcuts,
+/// settings) in a custom-chrome window (WindowChrome caption + DWM rounded
+/// corners). At most one instance exists at a time (<see cref="ShowOrActivate"/>);
+/// each open is a fresh window populated from the current config — no stale
+/// state. All changes persist immediately through <see cref="ConfigService"/>.
 /// </summary>
 /// <remarks>
-/// The window applies the dark/light title bar via DWM and follows
-/// <see cref="ConfigService.ThemeChanged"/> live: theme swaps repaint the
-/// layout previews and re-sync the theme radios. Closing the window tears down
-/// the shortcut recorders so the keyboard hook is never left in RecordingMode.
+/// The window draws its own titlebar (no system caption), follows
+/// <see cref="ConfigService.ThemeChanged"/> live (theme swaps repaint the
+/// layout previews and re-sync the settings theme cards), and clamps
+/// WM_GETMINMAXINFO so maximized fills the monitor's work area instead of
+/// covering the taskbar. Closing the window tears down the shortcut recorders
+/// so the keyboard hook is never left in RecordingMode.
 /// </remarks>
 public partial class SettingsWindow : Window
 {
@@ -33,17 +37,13 @@ public partial class SettingsWindow : Window
     private readonly KeyboardHook _hook;
 
     private IntPtr _hwnd;
-
-    /// <summary>Suppresses tab-activation refresh while the window is being built.</summary>
-    private bool _initializing = true;
+    private HwndSource? _source;
 
     private LayoutsTab? _layoutsPanel;
-    private AdvancedRulesTab? _advancedRulesPanel;
     private ShortcutsTab? _shortcutsPanel;
-    private MouseActionsTab? _mouseActionsPanel;
-    private PluginsTab? _pluginsPanel;
-    private WorkspacesTab? _workspacesPanel;
     private SettingsTab? _settingsPanel;
+
+    private string _activeTab = "layouts";
 
     internal SettingsWindow(ConfigService config, KeyboardHook hook, Action<HotkeyAction>? applyPreset = null)
     {
@@ -54,26 +54,18 @@ public partial class SettingsWindow : Window
         LoadHeaderIcon();
 
         _layoutsPanel = new LayoutsTab(config, applyPreset);
-        _advancedRulesPanel = new AdvancedRulesTab();
         _shortcutsPanel = new ShortcutsTab(config, hook);
-        _mouseActionsPanel = new MouseActionsTab();
-        _pluginsPanel = new PluginsTab();
-        _workspacesPanel = new WorkspacesTab();
         _settingsPanel = new SettingsTab(config);
         _settingsPanel.DefaultsRestored += OnDefaultsRestored;
 
-        ContentHost.Children.Add(_layoutsPanel);
-        ContentHost.Children.Add(_advancedRulesPanel);
-        ContentHost.Children.Add(_shortcutsPanel);
-        ContentHost.Children.Add(_mouseActionsPanel);
-        ContentHost.Children.Add(_pluginsPanel);
-        ContentHost.Children.Add(_workspacesPanel);
-        ContentHost.Children.Add(_settingsPanel);
+        LayoutsHost.Content = _layoutsPanel;
+        ShortcutsHost.Content = _shortcutsPanel;
+        SettingsHost.Content = _settingsPanel;
 
         _config.ThemeChanged += OnThemeChanged;
+        StateChanged += OnWindowStateChanged;
 
-        _initializing = false;
-        ShowTab(_layoutsPanel);
+        ShowTab("layouts");
 
         Closed += (_, _) => Teardown();
     }
@@ -82,18 +74,64 @@ public partial class SettingsWindow : Window
     /// Shows the settings window, activating the existing instance if one is
     /// already open (tray menu and WM_APP+1 both route through here).
     /// </summary>
+    /// <remarks>
+    /// The whole open sequence is guarded: if construction/Show/Activate throws
+    /// (the tray menu's broad catch swallows it, and Debug.WriteLine is
+    /// invisible in Release), the static singleton is reset so a later open can
+    /// retry instead of no-oping forever against a stale non-null reference.
+    /// </remarks>
     internal static void ShowOrActivate(ConfigService config, KeyboardHook hook, Action<HotkeyAction>? applyPreset = null)
     {
         if (s_openWindow != null)
         {
-            s_openWindow.Activate();
+            try
+            {
+                s_openWindow.Activate();
+            }
+            catch (Exception ex)
+            {
+                // Symmetric guard for the existing-window path. The window is
+                // alive and the singleton stays set — nothing to reset.
+                Debug.WriteLine($"[wintangle] settings window activate failed: {ex.Message}");
+            }
             return;
         }
 
-        s_openWindow = new SettingsWindow(config, hook, applyPreset);
-        s_openWindow.Closed += (_, _) => s_openWindow = null;
-        s_openWindow.Show();
-        s_openWindow.Activate();
+        SettingsWindow? window = null;
+        try
+        {
+            window = new SettingsWindow(config, hook, applyPreset);
+            s_openWindow = window;
+            window.Closed += (_, _) => s_openWindow = null;
+            window.Show();
+            window.Activate();
+        }
+        catch (Exception ex)
+        {
+            // Never leave s_openWindow set: the tray menu swallows this
+            // exception, and a stale non-null reference would make every later
+            // open a no-op — Settings would never open again.
+            //
+            // If the ctor already ran, the window subscribed to ThemeChanged
+            // and would otherwise root the config delegate graph forever
+            // (repeated failures leak windows), so unsubscribe and close it
+            // before discarding the reference.
+            if (window != null)
+            {
+                window._config.ThemeChanged -= window.OnThemeChanged;
+                try
+                {
+                    window.Close();
+                }
+                catch (Exception closeEx)
+                {
+                    Debug.WriteLine($"[wintangle] settings window close after open failure: {closeEx.Message}");
+                }
+            }
+            s_openWindow = null;
+            Debug.WriteLine($"[wintangle] settings window failed to open: {ex.Message}");
+            throw;
+        }
     }
 
     // ---- Chrome ----
@@ -102,9 +140,37 @@ public partial class SettingsWindow : Window
     {
         base.OnSourceInitialized(e);
 
-        _hwnd = new WindowInteropHelper(this).EnsureHandle();
-        var isDark = string.Equals(ConfigStore.NormalizeTheme(_config.Theme), ConfigModel.ThemeDark, StringComparison.Ordinal);
-        WindowApi.ApplyDarkTitleBar(_hwnd, isDark);
+        try
+        {
+            _hwnd = new WindowInteropHelper(this).EnsureHandle();
+            _source = HwndSource.FromHwnd(_hwnd);
+            _source?.AddHook(WndProc);
+
+            // Windows 11 rounded corners (custom chrome has no system caption).
+            WindowApi.ApplyWindowCorners(_hwnd, WindowApi.DWMWCP_ROUND);
+        }
+        catch (Exception ex)
+        {
+            // Chrome niceties must not kill the window: a failed corner
+            // attribute or hook leaves the window usable without them.
+            Debug.WriteLine($"[wintangle] settings window chrome init failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Alt+F4 with custom chrome (WindowStyle=None): the DefWindowProc path may
+    /// not translate the chord into WM_CLOSE, so handle it directly.
+    /// </summary>
+    protected override void OnPreviewKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.F4 && Keyboard.Modifiers.HasFlag(ModifierKeys.Alt))
+        {
+            e.Handled = true;
+            Close();
+            return;
+        }
+
+        base.OnPreviewKeyDown(e);
     }
 
     private void LoadHeaderIcon()
@@ -129,6 +195,66 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>
+    /// WM_GETMINMAXINFO: clamps the maximized size/position to the monitor's
+    /// work area. With custom chrome (WindowStyle=None) WPF would otherwise
+    /// maximize over the full monitor, covering the taskbar. Only the
+    /// ptMaxSize/ptMaxPosition fields are overwritten with the rcWork values;
+    /// the incoming struct's ptReserved, ptMinTrackSize (WPF's MinWidth/
+    /// MinHeight) and ptMaxTrackSize are passed through untouched.
+    /// </summary>
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == (int)NativeMethods.WM_GETMINMAXINFO)
+        {
+            ClampMaximizeToWorkArea(hwnd, lParam);
+            handled = true;
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private static void ClampMaximizeToWorkArea(IntPtr hwnd, IntPtr lParam)
+    {
+        var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+        var monitor = MonitorApi.MonitorFromWindow(hwnd, MonitorApi.MONITOR_DEFAULTTONEAREST);
+        var info = new MONITORINFOEX { cbSize = Marshal.SizeOf<MONITORINFOEX>() };
+        if (monitor != IntPtr.Zero && MonitorApi.GetMonitorInfoW(monitor, ref info))
+        {
+            // Only touch ptMaxSize/ptMaxPosition — the struct round-trips the
+            // rest verbatim (min/max track sizes stay as WPF set them).
+            mmi.ptMaxSize.X = info.rcWork.Width;
+            mmi.ptMaxSize.Y = info.rcWork.Height;
+            mmi.ptMaxPosition.X = info.rcWork.Left;
+            mmi.ptMaxPosition.Y = info.rcWork.Top;
+            Marshal.StructureToPtr(mmi, lParam, false);
+        }
+    }
+
+    // ---- Titlebar buttons ----
+
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e) => SystemCommands.MinimizeWindow(this);
+
+    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            SystemCommands.RestoreWindow(this);
+        }
+        else
+        {
+            SystemCommands.MaximizeWindow(this);
+        }
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e) => SystemCommands.CloseWindow(this);
+
+    private void OnWindowStateChanged(object? sender, EventArgs e)
+    {
+        // The maximize button becomes a "restore" glyph while maximized.
+        MaximizeButton.IsRestore = WindowState == WindowState.Maximized;
+    }
+
     // ---- Theme ----
 
     private void OnThemeChanged(string theme)
@@ -150,11 +276,13 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>
+    /// Theme swap hook: repaints the layout previews and re-syncs the settings
+    /// tab's theme cards (the tab also self-subscribes; both paths are
+    /// idempotent).
+    /// </summary>
     private void ApplyThemeUi(string theme)
     {
-        var isDark = string.Equals(ConfigStore.NormalizeTheme(theme), ConfigModel.ThemeDark, StringComparison.Ordinal);
-        WindowApi.ApplyDarkTitleBar(_hwnd, isDark);
-
         // Preview brushes are resolved at render time — repaint them.
         _layoutsPanel?.RefreshPreviews();
         _settingsPanel?.SyncThemeRadios(theme);
@@ -162,65 +290,48 @@ public partial class SettingsWindow : Window
 
     // ---- Tab activation ----
 
-    private void OnTabChecked(object sender, RoutedEventArgs e)
-    {
-        if (_initializing)
-        {
-            return;
-        }
+    private void LayoutsTabButton_Click(object sender, RoutedEventArgs e) => ShowTab("layouts");
 
-        if (ReferenceEquals(sender, LayoutsTabRadio))
+    private void ShortcutsTabButton_Click(object sender, RoutedEventArgs e) => ShowTab("shortcuts");
+
+    private void SettingsTabButton_Click(object sender, RoutedEventArgs e) => ShowTab("settings");
+
+    /// <summary>
+    /// Swaps the visible pane and runs that tab's refresh hook. The tabs share
+    /// the shell's public surface (LayoutsTab.RefreshShortcuts/
+    /// RefreshActiveWindows/UpdatePreview, ShortcutsTab.Rebuild, SettingsTab
+    /// auto-syncs via its own ThemeChanged subscription).
+    /// </summary>
+    private void ShowTab(string name)
+    {
+        bool layouts = name == "layouts";
+        bool shortcuts = name == "shortcuts";
+        bool settings = name == "settings";
+
+        // Leaving the shortcuts tab must cancel any in-flight recording so the
+        // shared hook flag is never left armed on a hidden tab. Rebuild does
+        // exactly that (CancelRecording per row resets RecordingMode).
+        if (!shortcuts && _activeTab == "shortcuts")
         {
-            ShowTab(_layoutsPanel);
-            _layoutsPanel?.RefreshShortcuts();
-            _layoutsPanel?.RefreshActiveWindows();
-        }
-        else if (ReferenceEquals(sender, AdvancedRulesTabRadio))
-        {
-            ShowTab(_advancedRulesPanel);
-        }
-        else if (ReferenceEquals(sender, ShortcutsTabRadio))
-        {
-            ShowTab(_shortcutsPanel);
             _shortcutsPanel?.Rebuild();
         }
-        else if (ReferenceEquals(sender, MouseActionsTabRadio))
-        {
-            ShowTab(_mouseActionsPanel);
-        }
-        else if (ReferenceEquals(sender, PluginsTabRadio))
-        {
-            ShowTab(_pluginsPanel);
-        }
-        else if (ReferenceEquals(sender, WorkspacesTabRadio))
-        {
-            ShowTab(_workspacesPanel);
-        }
-        else if (ReferenceEquals(sender, SettingsTabRadio))
-        {
-            ShowTab(_settingsPanel);
-        }
-    }
 
-    private void ShowTab(FrameworkElement? panel)
-    {
-        SetPanelVisibility(_layoutsPanel, panel);
-        SetPanelVisibility(_advancedRulesPanel, panel);
-        SetPanelVisibility(_shortcutsPanel, panel);
-        SetPanelVisibility(_mouseActionsPanel, panel);
-        SetPanelVisibility(_pluginsPanel, panel);
-        SetPanelVisibility(_workspacesPanel, panel);
-        SetPanelVisibility(_settingsPanel, panel);
-    }
+        LayoutsScroll.Visibility = layouts ? Visibility.Visible : Visibility.Collapsed;
+        ShortcutsScroll.Visibility = shortcuts ? Visibility.Visible : Visibility.Collapsed;
+        SettingsScroll.Visibility = settings ? Visibility.Visible : Visibility.Collapsed;
 
-    private static void SetPanelVisibility(FrameworkElement? candidate, FrameworkElement? active)
-    {
-        if (candidate == null)
+        if (layouts)
         {
-            return;
+            _layoutsPanel?.RefreshShortcuts();
+            _layoutsPanel?.RefreshActiveWindows();
+            _layoutsPanel?.UpdatePreview();
+        }
+        else if (shortcuts)
+        {
+            _shortcutsPanel?.Rebuild();
         }
 
-        candidate.Visibility = ReferenceEquals(candidate, active) ? Visibility.Visible : Visibility.Collapsed;
+        _activeTab = name;
     }
 
     // ---- Defaults restore ----
@@ -228,7 +339,7 @@ public partial class SettingsWindow : Window
     private void OnDefaultsRestored()
     {
         // RestoreDefaults already fired ThemeChanged when the theme actually
-        // changed; this covers the same-theme case (radios re-sync either way)
+        // changed; this covers the same-theme case (cards re-sync either way)
         // and rebuilds the shortcut rows + layout chips.
         _settingsPanel?.SyncThemeRadios(_config.Theme);
         _shortcutsPanel?.Rebuild();
@@ -240,6 +351,8 @@ public partial class SettingsWindow : Window
     private void Teardown()
     {
         _config.ThemeChanged -= OnThemeChanged;
+        _layoutsPanel?.Teardown();
         _shortcutsPanel?.Teardown();
+        _settingsPanel?.Teardown();
     }
 }

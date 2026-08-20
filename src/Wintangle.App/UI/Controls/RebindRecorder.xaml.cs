@@ -1,28 +1,33 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media.Animation;
 using Wintangle.App.Hooks;
 using Wintangle.Core.Hotkeys;
 
 namespace Wintangle.App.UI.Controls;
 
 /// <summary>
-/// Inline hotkey recorder: shows the current combo with a Record button.
-/// While recording, the shared keyboard hook swallows modified combos and
-/// raises <see cref="KeyboardHook.KeyCaptured"/> on the hook thread — this
-/// control marshals captures to the UI thread, validates them, and raises
-/// <see cref="ComboCaptured"/> with the new binding.
+/// Inline hotkey recorder: shows the current combo as keycap chips with a
+/// Record button. While recording, the shared keyboard hook swallows modified
+/// combos and raises <see cref="KeyboardHook.KeyCaptured"/> on the hook thread
+/// — this control marshals captures to the UI thread, validates them, and
+/// raises <see cref="ComboCaptured"/> with the new binding.
 /// </summary>
 /// <remarks>
-/// <para>Recording state: a bare Escape cancels; a bare modifier-only key is
-/// ignored (the hook filters those before raising anyway); an invalid or
-/// duplicate combo shows an inline error and keeps waiting so the user can
-/// press another combo or Esc.</para>
+/// <para>Recording state: the bind-box chips get the accent treatment and blink
+/// (Opacity 1↔0.4), the Record button becomes an Accent-filled "Press chord…",
+/// and a danger Cancel button appears. A bare Escape cancels; a bare
+/// modifier-only key is ignored (the hook filters those before raising anyway);
+/// an invalid or duplicate combo shows an inline error and keeps waiting so the
+/// user can press another combo or Esc.</para>
 /// <para>If the host window closes mid-recording, call <see cref="CancelRecording"/>
 /// so <see cref="KeyboardHook.RecordingMode"/> is reset — the hook must never
 /// stay armed after the recorder disappears.</para>
 /// </remarks>
 public partial class RebindRecorder : UserControl
 {
+    private readonly List<(Border Chip, TextBlock Text)> _chips = new();
+
     private KeyboardHook? _hook;
     private bool _isRecording;
     private Hotkey _currentHotkey;
@@ -187,28 +192,93 @@ public partial class RebindRecorder : UserControl
         UpdateIdleUi();
     }
 
+    // ---- UI ----
+
+    private void RebuildChips()
+    {
+        ChipsHost.Children.Clear();
+        _chips.Clear();
+
+        foreach (var part in HotkeyLabels.KeycapParts(_currentHotkey))
+        {
+            var text = new TextBlock { Text = part, FontSize = 11 };
+            text.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Muted");
+            text.SetResourceReference(TextBlock.FontFamilyProperty, "Font.Mono");
+
+            var chip = new Border
+            {
+                Child = text,
+                Margin = new Thickness(0, 0, 3, 0),
+            };
+            chip.SetResourceReference(Border.StyleProperty, "KeycapChip");
+            ChipsHost.Children.Add(chip);
+            _chips.Add((chip, text));
+        }
+    }
+
+    private void SetChipsRecording(bool recording)
+    {
+        foreach (var (chip, text) in _chips)
+        {
+            if (recording)
+            {
+                chip.SetResourceReference(Border.BorderBrushProperty, "Brush.AccentBorder45");
+                text.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Accent");
+            }
+            else
+            {
+                chip.ClearValue(Border.BorderBrushProperty);
+                text.ClearValue(TextBlock.ForegroundProperty);
+            }
+        }
+    }
+
     private void UpdateIdleUi()
     {
-        ComboText.Text = HotkeyLabels.Format(_currentHotkey);
-        ComboText.Visibility = Visibility.Visible;
-        RecordingText.Visibility = Visibility.Collapsed;
+        // Stop the recording blink and reset the bind-box chrome.
+        BindBox.BeginAnimation(OpacityProperty, null);
+        BindBox.Opacity = 1;
+        BindBox.ClearValue(Border.BorderBrushProperty);
+        ErrorText.Visibility = Visibility.Collapsed;
+
+        RebuildChips();
+        SetChipsRecording(recording: false);
+
         RecordButton.Visibility = Visibility.Visible;
         CancelButton.Visibility = Visibility.Collapsed;
-        ErrorText.Visibility = Visibility.Collapsed;
+        RecordButton.ClearValue(Button.BackgroundProperty);
+        RecordButton.ClearValue(Button.ForegroundProperty);
+        RecordButton.Content = "Record";
     }
 
     private void ShowRecordingUi()
     {
-        ComboText.Visibility = Visibility.Collapsed;
-        RecordingText.Visibility = Visibility.Visible;
-        RecordButton.Visibility = Visibility.Collapsed;
-        CancelButton.Visibility = Visibility.Visible;
+        BindBox.ClearValue(Border.BorderBrushProperty);
         ErrorText.Visibility = Visibility.Collapsed;
+
+        // The Record button becomes the "Press chord…" prompt (Accent filled);
+        // the danger Cancel button appears next to it.
+        RecordButton.Visibility = Visibility.Visible;
+        CancelButton.Visibility = Visibility.Visible;
+        RecordButton.SetResourceReference(Button.BackgroundProperty, "Brush.Accent");
+        RecordButton.SetResourceReference(Button.ForegroundProperty, "Brush.Surface");
+        RecordButton.Content = "Press chord…";
+        SetChipsRecording(recording: true);
+
+        // Blink the bind-box (Opacity 1↔0.4, 0.55s, forever). Stopped in
+        // UpdateIdleUi via BeginAnimation(null) — no storyboard to leak.
+        var blink = new DoubleAnimation(1, 0.4, TimeSpan.FromSeconds(0.55))
+        {
+            AutoReverse = true,
+            RepeatBehavior = RepeatBehavior.Forever,
+        };
+        BindBox.BeginAnimation(OpacityProperty, blink);
     }
 
     private void ShowError(string message)
     {
         ErrorText.Text = message;
         ErrorText.Visibility = Visibility.Visible;
+        BindBox.SetResourceReference(Border.BorderBrushProperty, "Brush.Danger");
     }
 }

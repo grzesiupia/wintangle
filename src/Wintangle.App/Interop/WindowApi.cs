@@ -13,11 +13,11 @@ internal static class WindowApi
     /// <summary>DWMWA_CLOAKED — window cloaked by a shell/owner (nonzero = cloaked).</summary>
     public const int DWMWA_CLOAKED = 14;
 
-    /// <summary>DWMWA_USE_IMMERSIVE_DARK_MODE (Windows 10 1903+ / 11).</summary>
-    public const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+    /// <summary>DWMWA_WINDOW_CORNER_PREFERENCE (Windows 11) — window corner policy.</summary>
+    public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
 
-    /// <summary>Older pre-1903 value for the same attribute.</summary>
-    public const int DWMWA_USE_IMMERSIVE_DARK_MODE_LEGACY = 19;
+    /// <summary>DWMWCP_ROUND — round corners when the window style allows it.</summary>
+    public const int DWMWCP_ROUND = 2;
 
     [DllImport("user32.dll")]
     internal static extern IntPtr GetForegroundWindow();
@@ -103,11 +103,10 @@ internal static class WindowApi
         out IntPtr lpdwResult);
 
     /// <summary>
-    /// Sets the window title bar's dark/light mode via DWM. Tries the modern
-    /// attribute (20) first, then the pre-1903 value (19). Windows-guarded and
-    /// never throws — unsupported builds keep the default title bar.
+    /// Sets the window corner preference via DWM (Windows 11). Windows-guarded
+    /// and never throws — unsupported builds keep the system default corners.
     /// </summary>
-    internal static void ApplyDarkTitleBar(IntPtr hwnd, bool dark)
+    internal static void ApplyWindowCorners(IntPtr hwnd, int preference)
     {
         if (hwnd == IntPtr.Zero || !OperatingSystem.IsWindows())
         {
@@ -116,17 +115,12 @@ internal static class WindowApi
 
         try
         {
-            var useDark = dark ? 1 : 0;
-            if (DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDark, sizeof(int)) != 0)
-            {
-                // Older Windows 10 builds don't know attribute 20.
-                useDark = dark ? 1 : 0;
-                DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_LEGACY, ref useDark, sizeof(int));
-            }
+            var value = preference;
+            DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref value, sizeof(int));
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] ApplyDarkTitleBar failed: {ex.Message}");
+            Debug.WriteLine($"[wintangle] ApplyWindowCorners failed: {ex.Message}");
         }
     }
 }

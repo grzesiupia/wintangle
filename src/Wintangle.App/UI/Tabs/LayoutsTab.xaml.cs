@@ -1,26 +1,35 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using Wintangle.App.Services;
 using Wintangle.App.UI.Controls;
-using Wintangle.Core.Geometry;
 using Wintangle.Core.Hotkeys;
 
 namespace Wintangle.App.UI.Tabs;
 
 /// <summary>
-/// Window Layouts tab: a clickable grid of the 16 slot presets (with their
-/// live shortcut chips) on the left, and the active windows list plus the
-/// (placeholder) rule builder on the right. Clicking a preset applies it to
-/// the window that owned the foreground before settings opened.
+/// Window Layouts tab (Phase 2): the 16 slot preset cards (with live shortcut
+/// chips) and a live desktop mock on the left; the active windows list with
+/// refresh on the right. Clicking a slot applies it to the window that owned
+/// the foreground before settings opened (via the shell's apply callback) and
+/// marks it selected. The desktop mock previews the last applied slot on the
+/// currently selected window. Theme swaps repaint the previews through
+/// <see cref="RefreshPreviews"/>; the shell calls <see cref="RefreshShortcuts"/>,
+/// <see cref="RefreshActiveWindows"/> and <see cref="UpdatePreview"/> on tab
+/// activation, and <see cref="Teardown"/> when the window closes.
 /// </summary>
 public partial class LayoutsTab : UserControl
 {
     private readonly ConfigService _config;
     private readonly Action<HotkeyAction>? _applyPreset;
 
-    private readonly List<(HotkeyAction Action, TextBlock ChipText)> _chips = new();
-    private readonly List<LayoutPreview> _previews = new();
+    private readonly List<SlotCard> _cards = new();
+    private readonly List<Button> _windowRows = new();
+    private readonly List<ActiveWindowInfo> _windows = new();
+
+    private HotkeyAction? _selectedAction;
+    private int _selectedWindow = -1;
 
     internal LayoutsTab(ConfigService config, Action<HotkeyAction>? applyPreset)
     {
@@ -28,49 +37,74 @@ public partial class LayoutsTab : UserControl
         _applyPreset = applyPreset;
 
         InitializeComponent();
-
         BuildCards();
-        FillRuleBuilderSamples();
-        RefreshActiveWindows();
+
+        _config.ThemeChanged += OnThemeChanged;
         RefreshShortcuts();
+        RefreshActiveWindows();
+        UpdatePreview();
     }
 
+    // ---- Shell surface ----
+
     /// <summary>
-    /// Re-reads the effective shortcut bindings and updates every card's chip.
+    /// Re-reads the effective shortcut bindings and updates every card's chips.
     /// Called when the tab is activated and after defaults are restored.
     /// </summary>
     public void RefreshShortcuts()
     {
-        foreach (var (action, chipText) in _chips)
+        foreach (var card in _cards)
         {
-            chipText.Text = FormatShortcut(action);
+            card.SetShortcut(_config.GetShortcut(card.Action) ?? DefaultHotkeys.FindHotkey(card.Action));
         }
     }
 
-    /// <summary>Re-enumerates the active windows list.</summary>
+    /// <summary>
+    /// Re-enumerates the active windows list, keeping the previously selected
+    /// window selected when it survives the refresh.
+    /// </summary>
     public void RefreshActiveWindows()
     {
-        WindowsList.ItemsSource = ActiveWindows.Enumerate();
+        // Snapshot the previously selected window (process + title) BEFORE the
+        // list is replaced — the old index no longer means anything once
+        // _windows is re-enumerated.
+        var previous = _selectedWindow >= 0 && _selectedWindow < _windows.Count
+            ? ((string, string)?)(_windows[_selectedWindow].ProcessName, _windows[_selectedWindow].Title)
+            : null;
+        var previousIndex = _selectedWindow;
+
+        _windows.Clear();
+        _windows.AddRange(ActiveWindows.Enumerate());
+        RebuildWindowRows(previous, previousIndex);
     }
 
+    /// <summary>Re-renders the live preview (shell hook on tab activation).</summary>
+    public void UpdatePreview() => ApplySlotToPreview(_selectedAction);
+
     /// <summary>
-    /// Repaints every preview from the current theme resources. Called on a
-    /// theme change (the brushes are resolved at render time).
+    /// Repaints every card thumbnail and the desktop mock from the current
+    /// theme resources (called on a theme change — brushes resolve at render).
     /// </summary>
     public void RefreshPreviews()
     {
-        foreach (var preview in _previews)
+        foreach (var card in _cards)
         {
-            preview.InvalidateVisual();
+            card.RefreshVisuals();
         }
+
+        Desktop.Refresh();
     }
 
-    // ---- Card building ----
+    /// <summary>Detaches the theme subscription (window teardown).</summary>
+    public void Teardown() => _config.ThemeChanged -= OnThemeChanged;
+
+    // ---- Slot cards ----
 
     /// <summary>
     /// The 16 slot actions in the exact display order used by the preset grid
-    /// and the rule-builder dropdowns. Explicit (not enum order) so reordering
-    /// either enum can never silently re-wire a card to the wrong slot.
+    /// (center-half first, then halves, quarters, thirds, sixths — matching the
+    /// design's SLOTS order). Explicit (not enum order) so reordering either
+    /// enum can never silently re-wire a card to the wrong slot.
     /// </summary>
     private static readonly HotkeyAction[] s_slotActions = new[]
     {
@@ -96,91 +130,207 @@ public partial class LayoutsTab : UserControl
     {
         foreach (var action in s_slotActions)
         {
-            CardsGrid.Children.Add(CreateCard(action, action.ToSlotLayout()!.Value));
+            var card = new SlotCard
+            {
+                Action = action,
+                Margin = new Thickness(5), // 10px grid gap
+            };
+            card.SetResourceReference(Button.StyleProperty, "SlotCard");
+            card.Click += (_, _) => OnSlotCardClick(action, card);
+            _cards.Add(card);
+            SlotGrid.Children.Add(card);
         }
     }
 
-    private Border CreateCard(HotkeyAction action, SlotLayout layout)
+    private void OnSlotCardClick(HotkeyAction action, SlotCard clicked)
     {
-        var preview = new LayoutPreview
+        _selectedAction = action;
+        foreach (var card in _cards)
         {
-            Layout = layout,
-            Width = 72,
-            Height = 44,
-            HorizontalAlignment = HorizontalAlignment.Left,
-        };
-        _previews.Add(preview);
-
-        var label = new TextBlock
-        {
-            Text = UiLabels.ActionName(action),
-            FontSize = 12,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 6, 0, 0),
-        };
-        label.SetResourceReference(TextBlock.ForegroundProperty, "Brush.TextSecondary");
-
-        var chipText = new TextBlock
-        {
-            FontSize = 11,
-        };
-        chipText.SetResourceReference(TextBlock.ForegroundProperty, "Brush.ShortcutChipFg");
-        _chips.Add((action, chipText));
-
-        var chip = new Border
-        {
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(6, 2, 6, 2),
-            Margin = new Thickness(0, 6, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Child = chipText,
-        };
-        chip.SetResourceReference(Border.BackgroundProperty, "Brush.ShortcutChipBg");
-
-        var stack = new StackPanel();
-        stack.Children.Add(preview);
-        stack.Children.Add(label);
-        stack.Children.Add(chip);
-
-        var card = new Border
-        {
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(8),
-            Margin = new Thickness(0, 0, 8, 8),
-            Cursor = Cursors.Hand,
-            Child = stack,
-        };
-        card.SetResourceReference(Border.BackgroundProperty, "Brush.Surface");
-        card.SetResourceReference(Border.BorderBrushProperty, "Brush.Border");
-        card.MouseLeftButtonUp += (_, _) => _applyPreset?.Invoke(action);
-
-        return card;
-    }
-
-    private void FillRuleBuilderSamples()
-    {
-        // Placeholder rule builder (approved out of scope): a sample app and
-        // the layout dropdowns are populated but disabled.
-        RuleAppCombo.Items.Add("notepad.exe");
-        RuleAppCombo.SelectedIndex = 0;
-
-        foreach (var action in s_slotActions)
-        {
-            var name = UiLabels.ActionName(action);
-            RuleLayoutCombo.Items.Add(name);
-            RuleElseCombo.Items.Add(name);
+            card.IsSelected = ReferenceEquals(card, clicked);
         }
 
-        RuleLayoutCombo.SelectedIndex = 0;
-        RuleElseCombo.SelectedIndex = 0;
+        // Apply to the pre-settings foreground window, then preview it.
+        _applyPreset?.Invoke(action);
+        ApplySlotToPreview(action);
     }
 
-    private string FormatShortcut(HotkeyAction action)
+    // ---- Active windows ----
+
+    private void RebuildWindowRows((string ProcessName, string Title)? previous, int previousIndex)
     {
-        var hotkey = _config.GetShortcut(action) ?? DefaultHotkeys.FindHotkey(action);
-        return hotkey is { } h ? HotkeyLabels.Format(h) : string.Empty;
+        WindowsList.Items.Clear();
+        _windowRows.Clear();
+
+        if (_windows.Count == 0)
+        {
+            var empty = new TextBlock
+            {
+                Text = "No windows found.",
+                FontSize = 12.5,
+                Margin = new Thickness(4, 2, 0, 0),
+            };
+            empty.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Muted");
+            WindowsList.Items.Add(empty);
+            _selectedWindow = -1;
+            return;
+        }
+
+        _selectedWindow = -1;
+
+        for (var i = 0; i < _windows.Count; i++)
+        {
+            var info = _windows[i];
+            if (_selectedWindow < 0 && previous is { } snap && (info.ProcessName, info.Title) == snap)
+            {
+                _selectedWindow = i;
+            }
+
+            var row = CreateWindowRow(i, info);
+            _windowRows.Add(row);
+            WindowsList.Items.Add(row);
+        }
+
+        if (_selectedWindow < 0)
+        {
+            // The previously selected window is gone — fall back to the same
+            // index (clamped to the new list length).
+            _selectedWindow = previousIndex >= 0 && previousIndex < _windows.Count ? previousIndex : 0;
+        }
+
+        UpdateRowSelection();
+        ApplySlotToPreview(_selectedAction);
     }
 
-    private void RefreshWindowsButton_Click(object sender, RoutedEventArgs e) => RefreshActiveWindows();
+    private Button CreateWindowRow(int index, ActiveWindowInfo info)
+    {
+        var row = new Button
+        {
+            Margin = new Thickness(0, 0, 0, 6),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+        };
+        row.SetResourceReference(Button.StyleProperty, "WinRow");
+
+        var proc = new TextBlock { Text = info.ProcessName };
+        proc.SetResourceReference(TextBlock.StyleProperty, "WinProcText");
+        var title = new TextBlock { Text = info.Title };
+        title.SetResourceReference(TextBlock.StyleProperty, "WinTitleText");
+        var textStack = new StackPanel { Margin = new Thickness(0, 0, 10, 0) };
+        textStack.Children.Add(proc);
+        textStack.Children.Add(title);
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(textStack, 0);
+        grid.Children.Add(textStack);
+
+        if (info.IsElevated)
+        {
+            var badgeText = new TextBlock { Text = "elevated" };
+            badgeText.SetResourceReference(TextBlock.StyleProperty, "BadgeText");
+            var badge = new Border
+            {
+                Child = badgeText,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            badge.SetResourceReference(Border.StyleProperty, "Badge");
+            Grid.SetColumn(badge, 1);
+            grid.Children.Add(badge);
+        }
+
+        row.Content = grid;
+        row.Click += (_, _) => SelectWindow(index);
+        return row;
+    }
+
+    private void SelectWindow(int index)
+    {
+        _selectedWindow = index;
+        UpdateRowSelection();
+        ApplySlotToPreview(_selectedAction);
+    }
+
+    private void UpdateRowSelection()
+    {
+        for (var i = 0; i < _windowRows.Count; i++)
+        {
+            var row = _windowRows[i];
+            if (i == _selectedWindow)
+            {
+                row.SetResourceReference(Button.BackgroundProperty, "Brush.AccentSoft");
+                row.SetResourceReference(Button.BorderBrushProperty, "Brush.Accent");
+            }
+            else
+            {
+                row.ClearValue(Button.BackgroundProperty);
+                row.ClearValue(Button.BorderBrushProperty);
+            }
+        }
+    }
+
+    // ---- Preview ----
+
+    private void ApplySlotToPreview(HotkeyAction? action)
+    {
+        var layout = action?.ToSlotLayout();
+        Desktop.SetSlot(layout, _config.Current.WindowGap, _config.Current.EdgeGap);
+
+        if (_selectedWindow >= 0 && _selectedWindow < _windows.Count)
+        {
+            var info = _windows[_selectedWindow];
+            Desktop.SetWindow(info.ProcessName, info.Title);
+        }
+
+        Desktop.Refresh();
+    }
+
+    // ---- Refresh button (rotate the icon 360° on click) ----
+
+    private void RefreshButton_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshActiveWindows();
+        AnimateRefreshIcon();
+    }
+
+    private void AnimateRefreshIcon()
+    {
+        if (RefreshIcon.RenderTransform is not RotateTransform rotate)
+        {
+            rotate = new RotateTransform(0);
+            RefreshIcon.RenderTransform = rotate;
+            RefreshIcon.RenderTransformOrigin = new Point(0.5, 0.5);
+        }
+
+        rotate.BeginAnimation(RotateTransform.AngleProperty, null);
+        rotate.Angle = 0;
+        var animation = new DoubleAnimation(360, TimeSpan.FromSeconds(0.3));
+        animation.Completed += (_, _) =>
+        {
+            rotate.BeginAnimation(RotateTransform.AngleProperty, null);
+            rotate.Angle = 0;
+        };
+        rotate.BeginAnimation(RotateTransform.AngleProperty, animation);
+    }
+
+    // ---- Theme ----
+
+    private void OnThemeChanged(string theme)
+    {
+        // ThemeChanged may fire on the watcher thread — marshal to the UI thread.
+        if (Dispatcher.CheckAccess())
+        {
+            RefreshPreviews();
+            return;
+        }
+
+        try
+        {
+            Dispatcher.BeginInvoke(() => RefreshPreviews());
+        }
+        catch (InvalidOperationException)
+        {
+            // Dispatcher rejected work at shutdown; the window is going away.
+        }
+    }
 }

@@ -3,6 +3,9 @@ using Wintangle.App.Interop;
 
 namespace Wintangle.App.Services;
 
+/// <summary>One enumerable top-level window (process label, title, pid, elevation).</summary>
+internal readonly record struct ActiveWindowInfo(string ProcessName, string Title, uint ProcessId, bool IsElevated);
+
 /// <summary>
 /// Enumerates the user-visible top-level windows for the settings UI's active
 /// windows list. Win32-only; returns an empty list on non-Windows.
@@ -11,24 +14,27 @@ namespace Wintangle.App.Services;
 /// Filters to windows a user could reasonably tile: visible, not cloaked,
 /// with a non-empty title, not tool windows, and not owned by this process.
 /// Per-window failures are skipped silently — one hostile window must never
-/// break the whole enumeration.
+/// break the whole enumeration. Elevation is queried once per process id per
+/// enumeration (the token query is relatively expensive and several windows
+/// often share a pid).
 /// </remarks>
 internal static class ActiveWindows
 {
     /// <summary>
-    /// Visible window labels in "ProcessName.exe — title" form, de-duplicated,
-    /// in top-down (z-order) enumeration order. Never throws.
+    /// Visible windows in top-down (z-order) enumeration order, de-duplicated
+    /// by (process, title). Never throws.
     /// </summary>
-    public static List<string> Enumerate()
+    public static List<ActiveWindowInfo> Enumerate()
     {
-        var result = new List<string>();
+        var result = new List<ActiveWindowInfo>();
         if (!OperatingSystem.IsWindows())
         {
             return result;
         }
 
         var ownPid = (uint)Environment.ProcessId;
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var seen = new HashSet<(string Process, string Title)>();
+        var elevationCache = new Dictionary<uint, bool>();
 
         try
         {
@@ -77,10 +83,9 @@ internal static class ActiveWindows
                     var fileName = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
                         ? processName
                         : processName + ".exe";
-                    var label = $"{fileName} — {title}";
-                    if (seen.Add(label))
+                    if (seen.Add((fileName, title)))
                     {
-                        result.Add(label);
+                        result.Add(new ActiveWindowInfo(fileName, title, pid, IsElevated(pid, elevationCache)));
                     }
                 }
                 catch (Exception)
@@ -130,5 +135,30 @@ internal static class ActiveWindows
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Elevation for <paramref name="pid"/>, cached per enumeration. Query
+    /// failures (access denied, exited process) are treated as not elevated.
+    /// </summary>
+    private static bool IsElevated(uint pid, Dictionary<uint, bool> cache)
+    {
+        if (cache.TryGetValue(pid, out var known))
+        {
+            return known;
+        }
+
+        bool elevated;
+        try
+        {
+            elevated = ElevationApi.IsProcessElevated(pid);
+        }
+        catch (Exception)
+        {
+            elevated = false;
+        }
+
+        cache[pid] = elevated;
+        return elevated;
     }
 }

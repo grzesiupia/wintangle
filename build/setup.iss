@@ -2,15 +2,15 @@
 ;
 ; Build from the repository root after publishing:
 ;   dotnet publish src/Wintangle.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o artifacts/publish
-;   iscc build\setup.iss /DAppVersion=1.0.0
+;   iscc build\setup.iss /DAppVersion=1.0.1
 ;
 ; The publish output directory can be overridden:
-;   iscc build\setup.iss /DAppVersion=1.0.0 /DSourceDir=C:\path\to\publish
+;   iscc build\setup.iss /DAppVersion=1.0.1 /DSourceDir=C:\path\to\publish
 ;
 ; Relative paths are resolved against this script's directory (build\).
 
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.0.1"
 #endif
 
 #ifndef SourceDir

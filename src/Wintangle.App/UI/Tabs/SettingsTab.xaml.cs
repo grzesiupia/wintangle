@@ -1,28 +1,40 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
+using System.Windows.Threading;
 using Wintangle.App.Services;
+using Wintangle.App.UI.Controls;
 using Wintangle.Core.Config;
 using Wintangle.Core.Geometry;
 
 namespace Wintangle.App.UI.Tabs;
 
 /// <summary>
-/// Settings tab: gap boxes, theme radios, autostart, ignored apps, and
-/// restore-defaults. All changes persist immediately through
-/// <see cref="ConfigService"/>. Restoring defaults raises
-/// <see cref="DefaultsRestored"/> so the shell can re-sync the rest of the UI.
+/// Settings tab (Phase 4): spacing sliders + gap boxes, theme cards, autostart
+/// switch, ignored-apps manager and restore-defaults with an inline
+/// confirmation bar. All changes persist immediately through
+/// <see cref="ConfigService"/>. The tab subscribes to
+/// <see cref="ConfigService.ThemeChanged"/> so externally edited config
+/// re-syncs the theme cards and gaps live (<see cref="Teardown"/> detaches
+/// it). Restoring defaults raises <see cref="DefaultsRestored"/> so the shell
+/// can re-sync the other tabs.
 /// </summary>
 public partial class SettingsTab : UserControl
 {
     private readonly ConfigService _config;
 
-    /// <summary>Suppresses save/autostart/theme events while the tab is being populated.</summary>
-    private bool _initializing = true;
+    /// <summary>
+    /// Suppresses save/theme/autostart events while the tab is being populated
+    /// or a control is being re-synced from the config (slider ↔ number box
+    /// two-way sync and external reloads).
+    /// </summary>
+    private bool _syncing;
 
-    /// <summary>Suppresses the Checked handlers while the shell re-syncs the radios.</summary>
-    private bool _syncingRadios;
+    /// <summary>Reverts the danger flash on a gap box after an invalid commit.</summary>
+    private DispatcherTimer? _invalidFlash;
 
     /// <summary>Raised after the user confirms "Restore defaults" (config already reset).</summary>
     public event Action? DefaultsRestored;
@@ -34,40 +46,84 @@ public partial class SettingsTab : UserControl
         InitializeComponent();
         LoadSettings();
 
-        _initializing = false;
+        _config.ThemeChanged += OnThemeChanged;
     }
 
     /// <summary>Re-reads the config into all controls (gaps, theme, autostart, ignored).</summary>
     private void LoadSettings()
     {
-        WindowGapBox.Text = _config.Current.WindowGap.ToString();
-        EdgeGapBox.Text = _config.Current.EdgeGap.ToString();
-        AutostartCheckBox.IsChecked = _config.GetAutoStartEnabled();
-        SyncThemeRadios(_config.Theme);
-        RefreshIgnored();
+        _syncing = true;
+        try
+        {
+            WindowGapSlider.Value = _config.Current.WindowGap;
+            EdgeGapSlider.Value = _config.Current.EdgeGap;
+            WindowGapBox.Text = _config.Current.WindowGap.ToString();
+            EdgeGapBox.Text = _config.Current.EdgeGap.ToString();
+            WindowGapValue.Text = _config.Current.WindowGap.ToString();
+            EdgeGapValue.Text = _config.Current.EdgeGap.ToString();
+            AutoStartSwitch.IsChecked = _config.GetAutoStartEnabled();
+            SyncThemeRadios(_config.Theme);
+            RefreshIgnored();
+        }
+        finally
+        {
+            _syncing = false;
+        }
     }
 
     /// <summary>
-    /// Sets the theme radios to match <paramref name="theme"/> without saving
+    /// Sets the theme cards to match <paramref name="theme"/> without saving
     /// (used by the shell on theme change / defaults restore).
     /// </summary>
     public void SyncThemeRadios(string theme)
     {
         var isDark = string.Equals(ConfigStore.NormalizeTheme(theme), ConfigModel.ThemeDark, StringComparison.Ordinal);
-
-        _syncingRadios = true;
-        try
-        {
-            DarkThemeRadio.IsChecked = isDark;
-            LightThemeRadio.IsChecked = !isDark;
-        }
-        finally
-        {
-            _syncingRadios = false;
-        }
+        DarkThemeCard.IsSelected = isDark;
+        LightThemeCard.IsSelected = !isDark;
     }
 
-    // ---- Gap boxes ----
+    /// <summary>Detaches the theme subscription (window teardown).</summary>
+    public void Teardown()
+    {
+        _config.ThemeChanged -= OnThemeChanged;
+        _invalidFlash?.Stop();
+    }
+
+    // ---- Gap sliders + number boxes ----
+
+    private void WindowGapSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_syncing)
+        {
+            return;
+        }
+
+        // Live commit: dragging the slider applies the gap immediately. The
+        // value is integral (GapSlider snaps to ticks) — no float drift.
+        var value = (int)e.NewValue;
+        if (value != _config.Current.WindowGap)
+        {
+            _config.UpdateGaps(value, _config.Current.EdgeGap);
+        }
+
+        SyncGapText(WindowGapBox, WindowGapValue, value);
+    }
+
+    private void EdgeGapSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_syncing)
+        {
+            return;
+        }
+
+        var value = (int)e.NewValue;
+        if (value != _config.Current.EdgeGap)
+        {
+            _config.UpdateGaps(_config.Current.WindowGap, value);
+        }
+
+        SyncGapText(EdgeGapBox, EdgeGapValue, value);
+    }
 
     private void WindowGapBox_LostFocus(object sender, RoutedEventArgs e) => CommitWindowGap();
 
@@ -93,19 +149,20 @@ public partial class SettingsTab : UserControl
     }
 
     private void CommitWindowGap()
-        => CommitGap(WindowGapBox, _config.Current.WindowGap, v => _config.UpdateGaps(v, _config.Current.EdgeGap));
+        => CommitGap(WindowGapBox, WindowGapSlider, WindowGapValue, _config.Current.WindowGap, v => _config.UpdateGaps(v, _config.Current.EdgeGap));
 
     private void CommitEdgeGap()
-        => CommitGap(EdgeGapBox, _config.Current.EdgeGap, v => _config.UpdateGaps(_config.Current.WindowGap, v));
+        => CommitGap(EdgeGapBox, EdgeGapSlider, EdgeGapValue, _config.Current.EdgeGap, v => _config.UpdateGaps(_config.Current.WindowGap, v));
 
     /// <summary>
     /// Applies a gap box value when it is a valid integer in [0, MaxGap] and
-    /// differs from the committed value; invalid or empty input reverts the box
-    /// to the last committed value and marks it with a red border. Saves only on
-    /// Enter or LostFocus — never per keystroke, so partial input is never
-    /// committed and the config isn't spammed.
+    /// differs from the committed value; invalid or empty input reverts the
+    /// box to the last committed value and flashes a danger border for 700 ms
+    /// before restoring the normal chrome. Saves only on Enter or LostFocus —
+    /// never per keystroke, so partial input is never committed and the config
+    /// isn't spammed.
     /// </summary>
-    private static void CommitGap(TextBox box, int current, Action<int> apply)
+    private void CommitGap(TextBox box, Slider slider, TextBlock valueLabel, int current, Action<int> apply)
     {
         if (TryParseGap(box.Text, out var value))
         {
@@ -116,6 +173,7 @@ public partial class SettingsTab : UserControl
 
             box.Text = value.ToString(); // normalize (e.g. "05" → "5")
             SetGapBoxState(box, invalid: false);
+            SyncGapSlider(slider, valueLabel, value);
             return;
         }
 
@@ -126,13 +184,40 @@ public partial class SettingsTab : UserControl
     private static bool TryParseGap(string? text, out int value)
         => int.TryParse(text?.Trim(), out value) && value is >= 0 and <= GapSettings.MaxGap;
 
-    private static void SetGapBoxState(TextBox box, bool invalid)
+    /// <summary>
+    /// Moves the slider to match a committed number-box value. Guarded by
+    /// <see cref="_syncing"/> so the resulting ValueChanged doesn't re-commit.
+    /// </summary>
+    private void SyncGapSlider(Slider slider, TextBlock valueLabel, int value)
+    {
+        _syncing = true;
+        try
+        {
+            slider.Value = value;
+        }
+        finally
+        {
+            _syncing = false;
+        }
+
+        valueLabel.Text = value.ToString();
+    }
+
+    /// <summary>Mirrors a live slider value into the number box and the value label.</summary>
+    private void SyncGapText(TextBox box, TextBlock valueLabel, int value)
+    {
+        box.Text = value.ToString();
+        valueLabel.Text = value.ToString();
+    }
+
+    private void SetGapBoxState(TextBox box, bool invalid)
     {
         if (invalid)
         {
             // Themed danger brush (fallback red if the resource is missing).
             box.BorderBrush = box.TryFindResource("Brush.Danger") as Brush ?? Brushes.Red;
             box.BorderThickness = new Thickness(1.5);
+            ScheduleInvalidFlash();
             return;
         }
 
@@ -140,38 +225,96 @@ public partial class SettingsTab : UserControl
         box.ClearValue(TextBox.BorderThicknessProperty);
     }
 
+    /// <summary>
+    /// Flashes the danger border for 700 ms (matching the design's invalid
+    /// state), then reverts the box chrome.
+    /// </summary>
+    private void ScheduleInvalidFlash()
+    {
+        if (_invalidFlash == null)
+        {
+            _invalidFlash = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
+            _invalidFlash.Tick += (_, _) =>
+            {
+                _invalidFlash.Stop();
+                SetGapBoxState(WindowGapBox, invalid: false);
+                SetGapBoxState(EdgeGapBox, invalid: false);
+            };
+        }
+
+        _invalidFlash.Stop();
+        _invalidFlash.Start();
+    }
+
     // ---- Theme ----
 
-    private void ThemeRadio_Checked(object sender, RoutedEventArgs e)
+    private void ThemeCard_Click(object sender, RoutedEventArgs e)
     {
-        if (_initializing || _syncingRadios)
+        if (sender is not ThemeCard card || card.Theme == _config.Theme)
         {
             return;
         }
 
-        if (ReferenceEquals(sender, DarkThemeRadio) && _config.Theme != ConfigModel.ThemeDark)
+        _config.SetTheme(card.Theme);
+    }
+
+    private void OnThemeChanged(string theme)
+    {
+        // ThemeChanged may fire on the watcher thread — marshal to the UI thread.
+        if (Dispatcher.CheckAccess())
         {
-            _config.SetTheme(ConfigModel.ThemeDark);
+            ApplyThemeSync(theme);
+            return;
         }
-        else if (ReferenceEquals(sender, LightThemeRadio) && _config.Theme != ConfigModel.ThemeLight)
+
+        try
         {
-            _config.SetTheme(ConfigModel.ThemeLight);
+            Dispatcher.BeginInvoke(() => ApplyThemeSync(theme));
+        }
+        catch (InvalidOperationException)
+        {
+            // Dispatcher rejected work at shutdown; the window is going away.
+        }
+    }
+
+    /// <summary>
+    /// Re-syncs the theme cards and gap controls from the config. Runs on any
+    /// applied theme change — including external edits, where the gaps may
+    /// have changed alongside the theme.
+    /// </summary>
+    private void ApplyThemeSync(string theme)
+    {
+        SyncThemeRadios(theme);
+
+        _syncing = true;
+        try
+        {
+            WindowGapSlider.Value = _config.Current.WindowGap;
+            EdgeGapSlider.Value = _config.Current.EdgeGap;
+            WindowGapBox.Text = _config.Current.WindowGap.ToString();
+            EdgeGapBox.Text = _config.Current.EdgeGap.ToString();
+            WindowGapValue.Text = _config.Current.WindowGap.ToString();
+            EdgeGapValue.Text = _config.Current.EdgeGap.ToString();
+        }
+        finally
+        {
+            _syncing = false;
         }
     }
 
     // ---- Autostart ----
 
-    private void AutostartCheckBox_Checked(object sender, RoutedEventArgs e)
+    private void AutoStartSwitch_Checked(object sender, RoutedEventArgs e)
     {
-        if (!_initializing)
+        if (!_syncing)
         {
             _config.SetAutoStart(true);
         }
     }
 
-    private void AutostartCheckBox_Unchecked(object sender, RoutedEventArgs e)
+    private void AutoStartSwitch_Unchecked(object sender, RoutedEventArgs e)
     {
-        if (!_initializing)
+        if (!_syncing)
         {
             _config.SetAutoStart(false);
         }
@@ -181,11 +324,119 @@ public partial class SettingsTab : UserControl
 
     private void RefreshIgnored()
     {
-        IgnoredList.Items.Clear();
-        foreach (var name in _config.Current.IgnoredApps)
+        IgnoredList.Children.Clear();
+
+        var names = _config.Current.IgnoredApps;
+        if (names.Count == 0)
         {
-            IgnoredList.Items.Add(name);
+            IgnoredList.Children.Add(CreateEmptyNote());
+            return;
         }
+
+        foreach (var name in names)
+        {
+            IgnoredList.Children.Add(CreateIgnoredRow(name));
+        }
+    }
+
+    /// <summary>Dashed-border empty state (the design's .empty-note).</summary>
+    private static Grid CreateEmptyNote()
+    {
+        var text = new TextBlock
+        {
+            Text = "No ignored apps. Windows from ignored apps are never tiled or moved.",
+            FontSize = 12.5,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(14),
+        };
+        text.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Muted");
+
+        // WPF Border can't dash its outline — a Rectangle stroke with
+        // StrokeDashArray fills the same role behind the text.
+        var dash = new Rectangle
+        {
+            StrokeThickness = 1,
+            StrokeDashArray = new DoubleCollection { 3, 3 },
+            RadiusX = 9,
+            RadiusY = 9,
+        };
+        dash.SetResourceReference(Shape.StrokeProperty, "Brush.Border");
+
+        var frame = new Grid();
+        frame.Children.Add(dash);
+        frame.Children.Add(text);
+        return frame;
+    }
+
+    private Border CreateIgnoredRow(string name)
+    {
+        var proc = new TextBlock { Text = name, FontSize = 13, FontWeight = FontWeights.SemiBold };
+        proc.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Fg");
+        proc.SetResourceReference(TextBlock.FontFamilyProperty, "Font.Mono");
+
+        var state = new TextBlock { Text = "· ignored", FontSize = 11, Margin = new Thickness(2, 0, 0, 0) };
+        state.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Muted");
+
+        var textStack = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        textStack.Children.Add(proc);
+        textStack.Children.Add(state);
+
+        var remove = new Button
+        {
+            Content = CreateRemoveIcon(),
+            ToolTip = $"Remove {name}",
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(10, 0, 0, 0),
+        };
+        remove.SetResourceReference(Button.StyleProperty, "IgnoreRemoveButton");
+        remove.Click += (_, _) => RemoveIgnored(name);
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(textStack, 0);
+        Grid.SetColumn(remove, 1);
+        grid.Children.Add(textStack);
+        grid.Children.Add(remove);
+
+        var row = new Border
+        {
+            Child = grid,
+            Padding = new Thickness(14, 8, 10, 8),
+            Margin = new Thickness(0, 0, 0, 6),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(9),
+        };
+        row.SetResourceReference(Border.BackgroundProperty, "Brush.Bg");
+        row.SetResourceReference(Border.BorderBrushProperty, "Brush.Border");
+        return row;
+    }
+
+    /// <summary>The 13px X glyph; its stroke follows the button foreground (Muted → Danger on hover).</summary>
+    private static Path CreateRemoveIcon()
+    {
+        var icon = new Path
+        {
+            Data = Geometry.Parse("M5 5l14 14M19 5L5 19"),
+            Width = 13,
+            Height = 13,
+            Stretch = Stretch.Uniform,
+            StrokeThickness = 2,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+        };
+        icon.SetBinding(
+            Path.StrokeProperty,
+            new Binding(nameof(Button.Foreground))
+            {
+                RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(Button), 1),
+            });
+        return icon;
     }
 
     private void IgnoreAddButton_Click(object sender, RoutedEventArgs e) => AddIgnoredFromBox();
@@ -212,13 +463,8 @@ public partial class SettingsTab : UserControl
         IgnoreAddBox.Clear();
     }
 
-    private void IgnoreRemoveButton_Click(object sender, RoutedEventArgs e)
+    private void RemoveIgnored(string name)
     {
-        if (IgnoredList.SelectedItem is not string name)
-        {
-            return;
-        }
-
         _config.RemoveIgnored(name);
         RefreshIgnored();
     }
@@ -226,22 +472,16 @@ public partial class SettingsTab : UserControl
     // ---- Restore defaults ----
 
     private void RestoreDefaultsButton_Click(object sender, RoutedEventArgs e)
+        => RestoreConfirmBar.Visibility = Visibility.Visible;
+
+    private void RestoreCancel_Click(object sender, RoutedEventArgs e)
+        => RestoreConfirmBar.Visibility = Visibility.Collapsed;
+
+    private void RestoreGo_Click(object sender, RoutedEventArgs e)
     {
-        var owner = Window.GetWindow(this);
-        var result = MessageBox.Show(
-            owner,
-            "Reset all settings to defaults?\n\nThis restores the default gaps and hotkeys, turns autostart off, and clears the ignored-apps list.",
-            "Restore defaults",
-            MessageBoxButton.OKCancel,
-            MessageBoxImage.Warning);
-
-        if (result != MessageBoxResult.OK)
-        {
-            return;
-        }
-
         _config.RestoreDefaults();
         LoadSettings();
+        RestoreConfirmBar.Visibility = Visibility.Collapsed;
         DefaultsRestored?.Invoke();
     }
 }

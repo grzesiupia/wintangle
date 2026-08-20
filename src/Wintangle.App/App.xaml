@@ -5,8 +5,12 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!-- Default theme; swapped at runtime by App.ApplyTheme. -->
+                <!-- Default theme; swapped at runtime by App.ApplyTheme
+                     (index 0 only — Controls.xaml below is never replaced). -->
                 <ResourceDictionary Source="Themes/Dark.xaml" />
+                <!-- Shared control styles; brushes resolve via DynamicResource
+                     from the active theme dictionary. -->
+                <ResourceDictionary Source="Themes/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

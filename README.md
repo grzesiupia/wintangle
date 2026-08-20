@@ -121,9 +121,10 @@ the easy way to get these right.
 ### Gaps semantics
 
 - **Window gap** — space left between two adjacent windows. Each window
-  contributes half of it at the seam.
-- **Edge gap** — space left between a window and the screen edge. The total
-  boundary inset per side is `edgeGap + windowGap`.
+  applies the full window gap on its interior edge, so the seam between two
+  adjacent windows is exactly the window gap.
+- **Edge gap** — space left between a window and the screen edge. A
+  boundary-touching edge applies only the edge gap.
 
 Defaults are 8 px window gap and 0 px edge gap.
 

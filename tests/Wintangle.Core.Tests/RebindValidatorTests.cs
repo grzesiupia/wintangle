@@ -22,7 +22,9 @@ public class RebindValidatorTests
     public void BareKey_WithoutModifier_IsInvalid()
     {
         // A with no modifiers — would swallow typing globally if bound.
-        Assert.NotNull(RebindValidator.Validate(new Hotkey(0x41, KeyModifiers.None)));
+        var error = RebindValidator.Validate(new Hotkey(0x41, KeyModifiers.None));
+        Assert.NotNull(error);
+        Assert.Equal("Include at least one modifier (Ctrl, Win, Alt or Shift).", error);
     }
 
     [Fact]

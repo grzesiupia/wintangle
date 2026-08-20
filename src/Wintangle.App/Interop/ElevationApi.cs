@@ -38,9 +38,16 @@ internal static class ElevationApi
     /// True when the current process is running elevated (TokenElevation on
     /// its own token). Never throws; returns false if the query fails.
     /// </summary>
-    internal static bool IsProcessElevated()
+    internal static bool IsProcessElevated() => IsProcessElevated((uint)Environment.ProcessId);
+
+    /// <summary>
+    /// True when the process with id <paramref name="processId"/> is running
+    /// elevated. Never throws; returns false if the query fails (permission
+    /// denied, process exited, etc.).
+    /// </summary>
+    internal static bool IsProcessElevated(uint processId)
     {
-        var hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, (uint)Environment.ProcessId);
+        var hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, processId);
         if (hProcess == IntPtr.Zero)
         {
             return false;

@@ -1,7 +1,7 @@
-using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using Wintangle.App.Interop;
+using Wintangle.App.Services;
 using Wintangle.Core.Geometry;
 using Wintangle.Core.Hotkeys;
 
@@ -9,8 +9,8 @@ namespace Wintangle.App.Dispatch;
 
 /// <summary>
 /// Applies a <see cref="HotkeyAction"/> to the foreground window. Never
-/// throws; every failure is logged via Debug.WriteLine (balloons for the
-/// user-visible elevation skips) and the call returns.
+/// throws; every failure is logged (balloons for the user-visible elevation
+/// skips) and the call returns.
 /// </summary>
 /// <remarks>
 /// Win32-only. The constructor and all methods are safe no-ops on non-Windows.
@@ -50,7 +50,7 @@ internal sealed class WindowDispatcher
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] Apply({action}) failed: {ex}");
+            Log.Error($"Apply({action}) failed", ex);
         }
     }
 
@@ -72,7 +72,7 @@ internal sealed class WindowDispatcher
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] ApplyToHwnd({action}) failed: {ex}");
+            Log.Error($"ApplyToHwnd({action}) failed for hwnd {hwnd}", ex);
         }
     }
 
@@ -171,7 +171,7 @@ internal sealed class WindowDispatcher
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] elevation check failed: {ex.Message}");
+            Log.Warn($"elevation check failed for {target.ProcessName}: {ex.Message}");
             return false;
         }
         finally
@@ -332,7 +332,7 @@ internal sealed class WindowDispatcher
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] balloon failed: {ex.Message}");
+            Log.Warn($"balloon failed: {ex.Message}");
         }
     }
 }

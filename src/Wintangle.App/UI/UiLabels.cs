@@ -27,4 +27,20 @@ internal static class UiLabels
         HotkeyAction.SixthBottomRight => "Bottom-Right Sixth",
         _ => action.ToString(),
     };
+
+    /// <summary>
+    /// The design's group label under each shortcut name ("half", "quarter",
+    /// "third", "sixth", "monitor") — mirrors the HTML group derivation.
+    /// </summary>
+    public static string GroupFor(HotkeyAction action) => action switch
+    {
+        HotkeyAction.CenterHalf or HotkeyAction.HalfLeft or HotkeyAction.HalfRight => "half",
+        HotkeyAction.QuarterTopLeft or HotkeyAction.QuarterTopRight
+            or HotkeyAction.QuarterBottomLeft or HotkeyAction.QuarterBottomRight => "quarter",
+        HotkeyAction.ThirdLeft or HotkeyAction.ThirdCenter or HotkeyAction.ThirdRight => "third",
+        HotkeyAction.SixthTopLeft or HotkeyAction.SixthTopCenter or HotkeyAction.SixthTopRight
+            or HotkeyAction.SixthBottomLeft or HotkeyAction.SixthBottomCenter or HotkeyAction.SixthBottomRight => "sixth",
+        HotkeyAction.PrevMonitor or HotkeyAction.NextMonitor => "monitor",
+        _ => string.Empty,
+    };
 }

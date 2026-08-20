@@ -1,7 +1,7 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using Wintangle.App.Interop;
+using Wintangle.App.Services;
 
 namespace Wintangle.App.Tray;
 
@@ -75,14 +75,14 @@ internal sealed class TrayIcon : IDisposable
             _added = TrayApi.Shell_NotifyIconW(TrayApi.NIM_ADD, ref _nid);
             if (!_added)
             {
-                Debug.WriteLine($"[wintangle] Shell_NotifyIconW(NIM_ADD) failed: {Marshal.GetLastWin32Error()}");
+                Log.Warn($"Shell_NotifyIconW(NIM_ADD) failed: {Marshal.GetLastWin32Error()}");
             }
 
             return _added;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] tray icon add failed: {ex.Message}");
+            Log.Error("tray icon add failed", ex);
             return false;
         }
     }
@@ -118,7 +118,7 @@ internal sealed class TrayIcon : IDisposable
         catch (Exception ex)
         {
             // Dispatcher can reject work once it has started shutting down.
-            Debug.WriteLine($"[wintangle] tray balloon marshal failed: {ex.Message}");
+            Log.Warn($"tray balloon marshal failed: {ex.Message}");
         }
     }
 
@@ -141,7 +141,7 @@ internal sealed class TrayIcon : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] tray balloon failed: {ex.Message}");
+            Log.Warn($"tray balloon failed: {ex.Message}");
         }
     }
 
@@ -159,7 +159,7 @@ internal sealed class TrayIcon : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] tray icon remove failed: {ex.Message}");
+            Log.Warn($"tray icon remove failed: {ex.Message}");
         }
         finally
         {
@@ -191,7 +191,7 @@ internal sealed class TrayIcon : IDisposable
         uint extracted = TrayApi.ExtractIconExW(exePath, 0, out var large, out var small, 1);
         if (extracted == 0)
         {
-            Debug.WriteLine($"[wintangle] ExtractIconExW failed: {Marshal.GetLastWin32Error()}");
+            Log.Warn($"ExtractIconExW failed: {Marshal.GetLastWin32Error()}");
             return IntPtr.Zero;
         }
 

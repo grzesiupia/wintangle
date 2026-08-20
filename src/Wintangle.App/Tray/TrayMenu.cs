@@ -109,7 +109,7 @@ internal sealed class TrayMenu
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] tray menu failed: {ex.Message}");
+            Log.Error("Tray command failed", ex);
         }
         finally
         {

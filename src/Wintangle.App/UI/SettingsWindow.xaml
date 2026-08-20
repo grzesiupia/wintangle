@@ -1,134 +1,136 @@
 <Window x:Class="Wintangle.App.UI.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="wintangle"
-        Width="920" Height="640"
-        MinWidth="760" MinHeight="520"
+        xmlns:controls="clr-namespace:Wintangle.App.UI.Controls"
+        Title="Settings · wintangle"
+        Width="960" Height="680"
+        MinWidth="860" MinHeight="620"
         WindowStartupLocation="CenterScreen"
-        ShowInTaskbar="True"
-        Background="{DynamicResource Brush.Bg}">
-    <Window.Resources>
-        <!-- Tab-bar radio: inactive TabInactiveFg, active TextPrimary + underline. -->
-        <Style x:Key="SettingsTabRadio" TargetType="RadioButton">
-            <Setter Property="Foreground" Value="{DynamicResource Brush.TabInactiveFg}" />
-            <Setter Property="Margin" Value="0,0,28,0" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <StackPanel>
-                            <ContentPresenter ContentSource="Content"
-                                              HorizontalAlignment="Left"
-                                              VerticalAlignment="Center" />
-                            <Border x:Name="Underline"
-                                    Height="2"
-                                    Margin="0,6,0,0"
-                                    CornerRadius="1"
-                                    Background="{DynamicResource Brush.Accent}"
-                                    Visibility="Collapsed" />
-                        </StackPanel>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}" />
-                    <Setter Property="FontWeight" Value="SemiBold" />
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-    </Window.Resources>
+        WindowStyle="None"
+        Background="{DynamicResource Brush.Surface}"
+        ShowInTaskbar="True">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="46"
+                      ResizeBorderThickness="5"
+                      GlassFrameThickness="0"
+                      CornerRadius="0"
+                      UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
 
-    <Grid Margin="20,16">
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="46" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Header: icon + name, version right-aligned -->
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <Image x:Name="HeaderIcon" Width="20" Height="20" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1"
-                       Text="wintangle"
-                       FontSize="16"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource Brush.TextPrimary}"
-                       VerticalAlignment="Center"
-                       Margin="8,0,0,0" />
-            <TextBlock Grid.Column="3"
-                       Text="1.0.0"
-                       FontSize="12"
-                       Foreground="{DynamicResource Brush.TextTertiary}"
+        <!-- ── Titlebar ─────────────────────────────────────────────── -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource Brush.Bg2}"
+                BorderBrush="{DynamicResource Brush.Border}"
+                BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Image x:Name="HeaderIcon"
+                       Width="16" Height="16"
+                       Margin="16,0,0,0"
                        VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Margin="10,0,0,0"
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="Medium"
+                           Foreground="{DynamicResource Brush.Fg}">
+                    Settings<Run Text="· wintangle"
+                                 FontWeight="Normal"
+                                 Foreground="{DynamicResource Brush.Muted}" />
+                </TextBlock>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <controls:WindowButton x:Name="MinimizeButton"
+                                           Style="{DynamicResource TitlebarButton}"
+                                           Glyph="M1.5 6h9"
+                                           ToolTip="Minimize"
+                                           AutomationProperties.Name="Minimize"
+                                           Click="MinimizeButton_Click" />
+                    <controls:WindowButton x:Name="MaximizeButton"
+                                           Style="{DynamicResource TitlebarButton}"
+                                           Glyph="M1.5 1.5h9v9h-9z"
+                                           ToolTip="Maximize"
+                                           AutomationProperties.Name="Maximize"
+                                           Click="MaximizeButton_Click" />
+                    <controls:WindowButton x:Name="CloseButton"
+                                           Style="{DynamicResource TitlebarButton}"
+                                           Glyph="M2 2l8 8M10 2l-8 8"
+                                           IsClose="True"
+                                           ToolTip="Close"
+                                           AutomationProperties.Name="Close"
+                                           Click="CloseButton_Click" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ── Body: rail + pane host ───────────────────────────────── -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="236" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Tab rail -->
+            <Border Grid.Column="0"
+                    BorderBrush="{DynamicResource Brush.Border}"
+                    BorderThickness="0,0,1,0"
+                    Padding="20,12">
+                <StackPanel>
+                    <controls:TabButton x:Name="LayoutsTabButton"
+                                        Style="{DynamicResource TabButton}"
+                                        Icon="M4 4h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M15 4h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M4 15h5a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z M15 15h5a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"
+                                        Content="Window layouts"
+                                        GroupName="SettingsTabs"
+                                        IsSelected="True"
+                                        Margin="0,0,0,4"
+                                        Click="LayoutsTabButton_Click" />
+                    <controls:TabButton x:Name="ShortcutsTabButton"
+                                        Style="{DynamicResource TabButton}"
+                                        Icon="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M6 8h.01 M9 8h.01 M12 8h.01 M6 12h.01 M9 12h4 M6 16h.01 M15 16h3"
+                                        Content="Keyboard shortcuts"
+                                        GroupName="SettingsTabs"
+                                        Margin="0,0,0,4"
+                                        Click="ShortcutsTabButton_Click" />
+                    <controls:TabButton x:Name="SettingsTabButton"
+                                        Style="{DynamicResource TabButton}"
+                                        Icon="M4 7h16 M4 12h16 M4 17h16 M7 7a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M13 12a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M5 17a2 2 0 1 0 4 0a2 2 0 1 0-4 0"
+                                        Content="Settings"
+                                        GroupName="SettingsTabs"
+                                        Click="SettingsTabButton_Click" />
+                </StackPanel>
+            </Border>
+
+            <!-- Pane host: three panels, visibility-swapped by ShowTab -->
+            <Grid Grid.Column="1">
+                <ScrollViewer x:Name="LayoutsScroll" VerticalScrollBarVisibility="Auto">
+                    <ContentControl x:Name="LayoutsHost"
+                                    Margin="36,0,44,44"
+                                    Focusable="False" />
+                </ScrollViewer>
+                <ScrollViewer x:Name="ShortcutsScroll"
+                              VerticalScrollBarVisibility="Auto"
+                              Visibility="Collapsed">
+                    <ContentControl x:Name="ShortcutsHost"
+                                    Margin="36,0,44,44"
+                                    Focusable="False" />
+                </ScrollViewer>
+                <ScrollViewer x:Name="SettingsScroll"
+                              VerticalScrollBarVisibility="Auto"
+                              Visibility="Collapsed">
+                    <ContentControl x:Name="SettingsHost"
+                                    Margin="36,0,44,44"
+                                    Focusable="False" />
+                </ScrollViewer>
+            </Grid>
         </Grid>
-
-        <!-- Tab bar: scrolls horizontally instead of clipping at MinWidth with font scaling -->
-        <ScrollViewer Grid.Row="1"
-                      Margin="0,16,0,0"
-                      HorizontalScrollBarVisibility="Hidden"
-                      VerticalScrollBarVisibility="Disabled"
-                      Focusable="False">
-            <StackPanel Orientation="Horizontal">
-                <RadioButton x:Name="LayoutsTabRadio"
-                             Style="{StaticResource SettingsTabRadio}"
-                             GroupName="SettingsTabs"
-                             IsChecked="True"
-                             Checked="OnTabChecked">
-                    <TextBlock Text="Window Layouts" />
-                </RadioButton>
-                <RadioButton x:Name="AdvancedRulesTabRadio"
-                             Style="{StaticResource SettingsTabRadio}"
-                             GroupName="SettingsTabs"
-                             Checked="OnTabChecked">
-                    <TextBlock Text="Advanced Rules" />
-                </RadioButton>
-                <RadioButton x:Name="ShortcutsTabRadio"
-                             Style="{StaticResource SettingsTabRadio}"
-                             GroupName="SettingsTabs"
-                             Checked="OnTabChecked">
-                    <TextBlock Text="Keyboard Shortcuts" />
-                </RadioButton>
-                <RadioButton x:Name="MouseActionsTabRadio"
-                             Style="{StaticResource SettingsTabRadio}"
-                             GroupName="SettingsTabs"
-                             Checked="OnTabChecked">
-                    <TextBlock Text="Mouse Actions" />
-                </RadioButton>
-                <RadioButton x:Name="PluginsTabRadio"
-                             Style="{StaticResource SettingsTabRadio}"
-                             GroupName="SettingsTabs"
-                             Checked="OnTabChecked">
-                    <TextBlock Text="Plugins" />
-                </RadioButton>
-                <RadioButton x:Name="WorkspacesTabRadio"
-                             Style="{StaticResource SettingsTabRadio}"
-                             GroupName="SettingsTabs"
-                             Checked="OnTabChecked">
-                    <TextBlock Text="Workspaces" />
-                </RadioButton>
-                <RadioButton x:Name="SettingsTabRadio"
-                             Style="{StaticResource SettingsTabRadio}"
-                             GroupName="SettingsTabs"
-                             Checked="OnTabChecked">
-                    <TextBlock Text="Settings" />
-                </RadioButton>
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- Content: tab panels (visibility swapped in code-behind) -->
-        <Grid x:Name="ContentHost" Grid.Row="2" Margin="0,16,0,0" />
     </Grid>
 </Window>

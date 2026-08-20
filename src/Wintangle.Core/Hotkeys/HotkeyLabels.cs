@@ -36,6 +36,72 @@ public static class HotkeyLabels
         return string.Join("+", parts);
     }
 
+    /// <summary>
+    /// The keycap parts of a hotkey, e.g. ["Ctrl", "Win", "←"] for Ctrl+Win+Left.
+    /// Used by the settings UI to render one chip per part. Unlike
+    /// <see cref="Format(Hotkey)"/> (which keeps the "Ctrl+Win+C" tray string),
+    /// the key uses display glyphs: arrows become "←"/"→"/"↑"/"↓",
+    /// PageUp→"PgUp", PageDown→"PgDn", Delete→"Del", Space→"Space", Home/End
+    /// stay "Home"/"End", and printable keys are uppercased.
+    /// </summary>
+    public static IReadOnlyList<string> KeycapParts(Hotkey hotkey) => KeycapParts(hotkey.Modifiers, hotkey.VirtualKey);
+
+    /// <inheritdoc cref="KeycapParts(Hotkey)"/>
+    public static IReadOnlyList<string> KeycapParts(KeyModifiers mods, byte vk)
+    {
+        var parts = new List<string>(4);
+        if ((mods & KeyModifiers.Ctrl) != 0)
+        {
+            parts.Add("Ctrl");
+        }
+
+        if ((mods & KeyModifiers.Win) != 0)
+        {
+            parts.Add("Win");
+        }
+
+        if ((mods & KeyModifiers.Alt) != 0)
+        {
+            parts.Add("Alt");
+        }
+
+        if ((mods & KeyModifiers.Shift) != 0)
+        {
+            parts.Add("Shift");
+        }
+
+        parts.Add(KeyGlyph(vk));
+        return parts;
+    }
+
+    /// <summary>The display glyph for a virtual key in a keycap chip.</summary>
+    private static string KeyGlyph(byte vk) => vk switch
+    {
+        0x21 => "PgUp",   // VK_PRIOR
+        0x22 => "PgDn",   // VK_NEXT
+        0x23 => "Home",
+        0x24 => "End",
+        0x25 => "←",      // VK_LEFT
+        0x26 => "↑",      // VK_UP
+        0x27 => "→",      // VK_RIGHT
+        0x28 => "↓",      // VK_DOWN
+        0x2E => "Del",    // VK_DELETE
+        0x20 => "Space",  // VK_SPACE
+        _ => PrintableKey(vk),
+    };
+
+    /// <summary>Printable ASCII virtual keys render as their (uppercased) char.</summary>
+    private static string PrintableKey(byte vk)
+    {
+        if (vk is >= 0x20 and <= 0x7E)
+        {
+            var ch = (char)vk;
+            return char.IsLetter(ch) ? char.ToUpperInvariant(ch).ToString() : ch.ToString();
+        }
+
+        return KeyName(vk);
+    }
+
     private static string KeyName(byte vk) => vk switch
     {
         (byte)'A' or (byte)'B' or (byte)'C' or (byte)'D' or (byte)'E' or (byte)'F' or (byte)'G' or

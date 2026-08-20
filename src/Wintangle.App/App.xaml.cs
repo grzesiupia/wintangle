@@ -1,5 +1,6 @@
-﻿using System.Diagnostics;
-using System.Windows;
+﻿using System.Windows;
+using System.Windows.Threading;
+using Wintangle.App.Services;
 using Wintangle.Core.Config;
 
 namespace Wintangle.App
@@ -11,6 +12,40 @@ namespace Wintangle.App
     {
         /// <summary>Theme currently applied to the app resources ("Dark"/"Light").</summary>
         public string? CurrentTheme { get; private set; }
+
+        public App()
+        {
+            // Best-effort crash capture: both handlers only log (the dispatcher
+            // one deliberately keeps e.Handled=false so WPF's default
+            // crash behavior is unchanged). One crash can raise both handlers
+            // (dispatcher first, then the process-level one), so a shared guard
+            // keeps it to a single "Unhandled" log entry.
+            DispatcherUnhandledException += OnDispatcherUnhandledException;
+            AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
+        }
+
+        private static int s_unhandledLogged;
+
+        /// <summary>Atomically claims the single crash log slot. Returns true only for the first caller.</summary>
+        private static bool TryMarkUnhandledLogged() => Interlocked.Exchange(ref s_unhandledLogged, 1) == 0;
+
+        private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+        {
+            if (TryMarkUnhandledLogged())
+            {
+                Log.Error("Unhandled", e.Exception);
+            }
+            // Deliberately NOT setting e.Handled — the default behavior (crash)
+            // stays as-is; the log entry is the only change.
+        }
+
+        private static void OnAppDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            if (TryMarkUnhandledLogged())
+            {
+                Log.Error("Unhandled", e.ExceptionObject as Exception);
+            }
+        }
 
         /// <summary>
         /// Swaps the merged theme dictionary (MergedDictionaries[0], seeded by
@@ -37,7 +72,7 @@ namespace Wintangle.App
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[wintangle] theme apply failed for '{normalized}': {ex.Message}");
+                Log.Warn($"theme apply failed for '{normalized}': {ex.Message}");
             }
         }
     }

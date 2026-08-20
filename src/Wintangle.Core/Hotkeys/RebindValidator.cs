@@ -34,7 +34,7 @@ public static class RebindValidator
 
         if (hotkey.Modifiers == KeyModifiers.None && hotkey.VirtualKey != VK_ESCAPE)
         {
-            return "Requires at least one modifier (Ctrl, Alt, Win, or Shift).";
+            return "Include at least one modifier (Ctrl, Win, Alt or Shift).";
         }
 
         return null;

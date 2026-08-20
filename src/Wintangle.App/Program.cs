@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Interop;
 using Wintangle.App.Dispatch;
@@ -42,9 +41,13 @@ public static class Program
     [STAThread]
     public static void Main()
     {
+        Log.Init();
+        Log.Info("wintangle starting");
+
         if (!OperatingSystem.IsWindows())
         {
             Console.WriteLine("wintangle requires Windows 10/11 — exiting.");
+            Log.Warn("wintangle requires Windows 10/11 — exiting");
             return;
         }
 
@@ -52,6 +55,7 @@ public static class Program
         // signals the running instance to show settings, then exits.
         if (!SingleInstance.TryAcquire())
         {
+            Log.Info("another instance is running — signaled it to show settings; exiting");
             return;
         }
 
@@ -61,7 +65,7 @@ public static class Program
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[wintangle] DPI init failed (manifest already declares PerMonitorV2): {ex.Message}");
+            Log.Warn($"DPI init failed (manifest already declares PerMonitorV2): {ex.Message}");
         }
 
         var app = new App();
@@ -108,9 +112,14 @@ public static class Program
         s_menu = new TrayMenu(s_hostHwnd, s_state, s_config, (action, gaps) => s_dispatcher.Apply(action, gaps), Quit, ShowSettingsWindow);
 
         bool hookInstalled = s_hook.Start();
-        Debug.WriteLine(hookInstalled
-            ? "[wintangle] keyboard hook installed."
-            : "[wintangle] keyboard hook NOT installed; tray menu still available.");
+        if (hookInstalled)
+        {
+            Log.Info("keyboard hook installed");
+        }
+        else
+        {
+            Log.Warn("keyboard hook NOT installed; tray menu still available");
+        }
 
         // Apply persisted config (hotkeys, gaps, ignored apps) and sync the
         // registry autostart to the config's AutoStart flag.
@@ -130,6 +139,7 @@ public static class Program
         // Application.Shutdown path (tray menu → Quit) unwinds through here
         // after the dispatcher loop exits.
         Shutdown();
+        Log.Info("wintangle exiting");
     }
 
     /// <summary>
@@ -177,6 +187,12 @@ public static class Program
     /// tray menu and via WM_APP+1 from a second instance. Dropped silently
     /// while the config/hook are still being wired up at startup.
     /// </summary>
+    /// <remarks>
+    /// ShowOrActivate rethrows after resetting its singleton, so a failure here
+    /// is logged (Debug builds) and surfaced as a tray balloon (Release builds
+    /// only — Debug.WriteLine is compiled out there, and the balloon gives the
+    /// user something to report).
+    /// </remarks>
     private static void ShowSettingsWindow()
     {
         if (s_config == null || s_hook == null)
@@ -202,7 +218,17 @@ public static class Program
             }
         };
 
-        SettingsWindow.ShowOrActivate(s_config, s_hook, apply);
+        try
+        {
+            SettingsWindow.ShowOrActivate(s_config, s_hook, apply);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Settings failed to open", ex);
+#if !DEBUG
+            s_tray?.ShowBalloon("wintangle", $"Settings failed to open: {ex.Message}");
+#endif
+        }
     }
 
     private static void Quit()

@@ -1,22 +1,30 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- wintangle light theme — brushes only (same keys as Dark.xaml). -->
-    <SolidColorBrush x:Key="Brush.Bg" Color="#F5F5F5" />
-    <SolidColorBrush x:Key="Brush.HeaderBg" Color="#FFFFFF" />
+    <!-- wintangle light theme — brushes + fonts (same keys as Dark.xaml). -->
+    <SolidColorBrush x:Key="Brush.Bg" Color="#FBFCFD" />
+    <SolidColorBrush x:Key="Brush.Bg2" Color="#FDFDFE" />
     <SolidColorBrush x:Key="Brush.Surface" Color="#FFFFFF" />
-    <SolidColorBrush x:Key="Brush.SurfaceAlt" Color="#F0F0F0" />
-    <SolidColorBrush x:Key="Brush.Border" Color="#D6D6D6" />
-    <SolidColorBrush x:Key="Brush.TextPrimary" Color="#1E1E1E" />
-    <SolidColorBrush x:Key="Brush.TextSecondary" Color="#3F3F3F" />
-    <SolidColorBrush x:Key="Brush.TextTertiary" Color="#6E6E6E" />
-    <SolidColorBrush x:Key="Brush.Accent" Color="#14000000" />
-    <SolidColorBrush x:Key="Brush.SelectionBorder" Color="#40000000" />
-    <SolidColorBrush x:Key="Brush.Hover" Color="#0A000000" />
-    <SolidColorBrush x:Key="Brush.Danger" Color="#C42B1C" />
-    <SolidColorBrush x:Key="Brush.ShortcutChipBg" Color="#E8E8E8" />
-    <SolidColorBrush x:Key="Brush.ShortcutChipFg" Color="#3F3F3F" />
-    <SolidColorBrush x:Key="Brush.TabInactiveFg" Color="#6E6E6E" />
-    <SolidColorBrush x:Key="Brush.RecordingFg" Color="#2563EB" />
+    <SolidColorBrush x:Key="Brush.Fg" Color="#0E1217" />
+    <SolidColorBrush x:Key="Brush.Muted" Color="#6A6F76" />
+    <SolidColorBrush x:Key="Brush.Border" Color="#E2E5E8" />
+    <SolidColorBrush x:Key="Brush.Accent" Color="#1779E1" />
+    <SolidColorBrush x:Key="Brush.AccentSoft" Color="#1F1779E1" />
+    <SolidColorBrush x:Key="Brush.FgSoft" Color="#0D0E1217" />
+    <SolidColorBrush x:Key="Brush.Danger" Color="#C9302D" />
+    <SolidColorBrush x:Key="Brush.DangerSoft" Color="#1FC9302D" />
+    <SolidColorBrush x:Key="Brush.CloseHoverText" Color="#FFF6F7" />
+    <SolidColorBrush x:Key="Brush.ThemeDotDark" Color="#12171B" />
+    <SolidColorBrush x:Key="Brush.ThemeDotLight" Color="#F3F5F8" />
+    <SolidColorBrush x:Key="Brush.DeskTaskbar" Color="#FBFCFD" />
+    <SolidColorBrush x:Key="Brush.GoHover" Color="#A42523" />
+    <SolidColorBrush x:Key="Brush.AccentBorder45" Color="#731779E1" />
+    <SolidColorBrush x:Key="Brush.Muted60" Color="#A6A9AD" />
+    <SolidColorBrush x:Key="Brush.DangerBorder32" Color="#52C9302D" />
+    <SolidColorBrush x:Key="Brush.FgHoverBorder" Color="#C5C6C7" />
+
+    <FontFamily x:Key="Font.Body">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="Font.Display">Segoe UI Variable Display, Segoe UI</FontFamily>
+    <FontFamily x:Key="Font.Mono">Cascadia Mono, Consolas</FontFamily>
 
 </ResourceDictionary>

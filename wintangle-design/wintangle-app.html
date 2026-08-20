@@ -1,0 +1,913 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>wintangle — keyboard-only window manager for Windows 11</title>
+<style>
+:root{
+  --bg:      oklch(99% 0.002 240);
+  --surface: oklch(100% 0 0);
+  --fg:      oklch(18% 0.012 250);
+  --muted:   oklch(54% 0.012 250);
+  --border:  oklch(92% 0.005 250);
+  --accent:  oklch(58% 0.18 255);
+  --accent-soft: color-mix(in oklch, var(--accent) 12%, transparent);
+  --fg-soft: color-mix(in oklch, var(--fg) 5%, transparent);
+  --bg-2:    color-mix(in oklch, var(--bg) 55%, var(--surface));
+  --danger:  oklch(55% 0.19 27);
+  --danger-soft: color-mix(in oklch, var(--danger) 12%, transparent);
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  --font-body:    -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+html[data-theme="dark"]{
+  --bg:      oklch(16% 0.012 250);
+  --surface: oklch(21% 0.014 250);
+  --fg:      oklch(94% 0.004 250);
+  --muted:   oklch(68% 0.012 250);
+  --border:  oklch(30% 0.016 250);
+  --accent:  oklch(74% 0.14 255);
+  --accent-soft: color-mix(in oklch, var(--accent) 18%, transparent);
+  --fg-soft: color-mix(in oklch, var(--fg) 7%, transparent);
+  --bg-2:    color-mix(in oklch, var(--bg) 60%, var(--surface));
+  --danger:  oklch(72% 0.16 25);
+  --danger-soft: color-mix(in oklch, var(--danger) 16%, transparent);
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font-family:var(--font-body);font-size:15px;line-height:1.5;
+  text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;
+}
+img,svg{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+button{font:inherit;cursor:pointer;color:inherit;background:none;border:0;padding:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.container{max-width:1120px;margin-inline:auto;padding-inline:32px}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+
+/* ── masthead ─────────────────────────────────────────────── */
+.masthead{position:sticky;top:0;z-index:20;background:color-mix(in oklch,var(--bg) 88%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+.masthead-inner{display:flex;align-items:center;justify-content:space-between;height:60px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand-tile{
+  width:30px;height:30px;border-radius:8px;background:var(--fg);color:var(--bg);
+  display:grid;place-items:center;box-shadow:inset 0 0 0 1px color-mix(in oklch,var(--fg) 12%,transparent);
+}
+.brand-tile svg{width:20px;height:20px}
+.brand-name{font-family:var(--font-display);font-weight:600;font-size:17px;letter-spacing:-0.015em}
+.brand-ver{font-family:var(--font-mono);font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:2px 8px}
+.seg{display:flex;border:1px solid var(--border);border-radius:999px;padding:3px;gap:2px}
+.seg button{padding:5px 14px;border-radius:999px;font-size:13px;color:var(--muted);transition:background .14s ease,color .14s ease}
+.seg button:hover{color:var(--fg)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px color-mix(in oklch,var(--fg) 10%,transparent);border:1px solid var(--border)}
+
+/* ── stage ────────────────────────────────────────────────── */
+.stage{padding:72px 0 96px}
+.stage-intro{max-width:640px;margin-bottom:44px}
+.stage-title{font-family:var(--font-display);font-size:clamp(30px,4.2vw,46px);line-height:1.06;letter-spacing:-0.022em;margin:0 0 16px;text-wrap:balance}
+.stage-title .accent-word{color:var(--accent)}
+.stage-sub{color:var(--muted);font-size:16px;max-width:52ch;margin:0;text-wrap:pretty}
+
+/* ── app window ───────────────────────────────────────────── */
+.app-window{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;
+  box-shadow:0 1px 0 color-mix(in oklch,var(--fg) 4%,transparent),0 24px 60px -28px color-mix(in oklch,var(--fg) 40%,transparent);
+}
+.titlebar{display:flex;align-items:center;gap:10px;height:46px;padding-left:16px;border-bottom:1px solid var(--border);background:var(--bg-2)}
+.win-icon{width:16px;height:16px;color:var(--fg)}
+.win-title{font-size:13px;font-weight:500;color:var(--fg)}
+.win-title .dim{color:var(--muted);font-weight:400}
+.win-buttons{margin-left:auto;display:flex;height:100%}
+.wb{width:46px;height:100%;display:grid;place-items:center;color:var(--muted);transition:background .12s ease,color .12s ease}
+.wb:hover{background:var(--fg-soft);color:var(--fg)}
+.wb-close:hover{background:var(--danger);color:oklch(98% 0.01 10)}
+.app-body{display:flex;min-height:560px}
+
+/* ── tab rail ─────────────────────────────────────────────── */
+.tabs{width:236px;flex:none;border-right:1px solid var(--border);padding:20px 12px;display:flex;flex-direction:column;gap:4px}
+.tab{
+  display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;
+  color:var(--muted);font-size:14px;font-weight:500;text-align:left;width:100%;
+  transition:background .13s ease,color .13s ease;
+}
+.tab:hover{background:var(--fg-soft);color:var(--fg)}
+.tab[aria-selected="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.tab svg{width:17px;height:17px;flex:none}
+
+/* ── pane ─────────────────────────────────────────────────── */
+.pane{flex:1;min-width:0;padding:36px 44px 44px}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+.pane-h{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:4px}
+.pane-h h2{font-family:var(--font-display);font-size:22px;font-weight:650;letter-spacing:-0.015em;margin:0}
+.pane-sub{color:var(--muted);font-size:13.5px;margin:0 0 26px;max-width:62ch;text-wrap:pretty}
+.pane-sub .hint{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+
+/* ── slot cards ───────────────────────────────────────────── */
+.slot-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.slot-card{
+  display:block;text-align:left;border:1px solid var(--border);border-radius:10px;
+  padding:10px 10px 9px;background:transparent;transition:border-color .13s ease,background .13s ease;
+}
+.slot-card:hover{border-color:color-mix(in oklch,var(--fg) 26%,transparent);background:var(--fg-soft)}
+.slot-card[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.slot-prev{position:relative;height:30px;border:1px solid var(--border);border-radius:5px;background:var(--bg-2);overflow:hidden;margin-bottom:9px}
+.slot-prev i{position:absolute;display:block;background:var(--fg-soft);border:1px solid var(--border)}
+.slot-card[aria-pressed="true"] .slot-prev i{background:var(--accent-soft);border-color:var(--accent);border-width:1.5px}
+.slot-name{display:block;font-size:12.5px;font-weight:600;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.keycaps{display:flex;flex-wrap:wrap;gap:3px;min-height:18px}
+.keycap{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:0.02em;line-height:1;
+  padding:4px 6px;border:1px solid var(--border);border-radius:5px;color:var(--muted);
+  background:var(--bg);white-space:nowrap;
+}
+.slot-card[aria-pressed="true"] .keycap{border-color:color-mix(in oklch,var(--accent) 45%,transparent);color:var(--accent)}
+
+/* ── preview + active windows ─────────────────────────────── */
+.preview-row{display:grid;grid-template-columns:1.45fr 1fr;gap:24px;margin-top:34px;align-items:start}
+.panel-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.desktop{position:relative;border:1px solid var(--border);border-radius:12px;overflow:hidden;aspect-ratio:16/9.6;background:var(--bg-2)}
+.desk-win{
+  position:absolute;background:var(--surface);border:1px solid var(--border);
+  border-radius:7px;overflow:hidden;box-shadow:0 10px 30px -14px color-mix(in oklch,var(--fg) 45%,transparent);
+  transition:left .26s cubic-bezier(.2,.7,.2,1),top .26s cubic-bezier(.2,.7,.2,1),width .26s cubic-bezier(.2,.7,.2,1),height .26s cubic-bezier(.2,.7,.2,1);
+}
+.desk-win .dw-bar{display:flex;align-items:center;gap:6px;height:20px;padding:0 8px;border-bottom:1px solid var(--border);background:var(--bg-2)}
+.desk-win .dw-bar i{width:6px;height:6px;border-radius:50%;background:var(--border)}
+.desk-win .dw-bar span{font-size:9px;color:var(--muted);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.desk-win .dw-body{height:calc(100% - 20px);display:grid;place-items:center;color:color-mix(in oklch,var(--muted) 60%,transparent);font-family:var(--font-mono);font-size:9px;letter-spacing:.04em}
+.desk-taskbar{position:absolute;left:0;right:0;bottom:0;height:9%;background:color-mix(in oklch,var(--bg) 82%,var(--surface));border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;padding:0 8px;gap:6px}
+.desk-taskbar i{width:14px;height:14px;border:1px solid var(--border);border-radius:4px}
+.desk-slot-label{position:absolute;top:10px;left:12px;font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.win-list{display:flex;flex-direction:column;gap:6px}
+.win-row{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:transparent;
+  transition:border-color .13s ease,background .13s ease;
+}
+.win-row:hover{border-color:color-mix(in oklch,var(--fg) 24%,transparent);background:var(--fg-soft)}
+.win-row[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.win-row .wp{font-size:12.5px;font-weight:600}
+.win-row .wt{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.win-row .wp,.win-row .wt{display:block;max-width:100%}
+.badge{flex:none;font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--danger);border:1px solid color-mix(in oklch,var(--danger) 40%,transparent);border-radius:999px;padding:2px 6px}
+.row-between{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.ghost-btn{
+  display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border:1px solid var(--border);border-radius:8px;
+  font-size:12.5px;font-weight:500;color:var(--muted);transition:border-color .13s ease,color .13s ease;
+}
+.ghost-btn:hover{border-color:color-mix(in oklch,var(--fg) 30%,transparent);color:var(--fg)}
+.ghost-btn svg{width:13px;height:13px}
+
+/* ── shortcuts ────────────────────────────────────────────── */
+.sc-row{
+  display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;
+  padding:12px 0;border-bottom:1px solid var(--border);
+}
+.sc-name{font-size:13.5px;font-weight:500}
+.sc-name small{display:block;font-family:var(--font-mono);font-size:10.5px;color:var(--muted);font-weight:400;margin-top:1px}
+.sc-bind{display:flex;align-items:center;gap:8px}
+.bind-box{display:flex;gap:3px;min-width:150px;min-height:26px;align-items:center}
+.bind-box .keycap{font-size:11px;padding:5px 7px}
+.bind-box.recording .keycap{animation:blink 1.1s steps(2) infinite;border-color:var(--accent);color:var(--accent)}
+@keyframes blink{50%{opacity:.4}}
+.record-btn{
+  font-size:12px;font-weight:600;color:var(--fg);border:1px solid var(--border);border-radius:7px;
+  padding:6px 11px;transition:border-color .13s ease,color .13s ease,background .13s ease;
+}
+.record-btn:hover{border-color:color-mix(in oklch,var(--fg) 32%,transparent)}
+.record-btn.recording{background:var(--accent);color:var(--surface);border-color:var(--accent)}
+.record-btn.cancel{background:var(--danger);color:oklch(98% 0.01 10);border-color:var(--danger)}
+.reset-btn{color:var(--muted);padding:6px;border-radius:7px;transition:color .13s ease,background .13s ease}
+.reset-btn:hover{color:var(--fg);background:var(--fg-soft)}
+.reset-btn svg{width:14px;height:14px}
+.sc-err{grid-column:1/-1;font-size:12px;color:var(--danger);margin:6px 0 0}
+.sc-err:empty{display:none}
+.sc-row.error .bind-box{border-color:var(--danger)}
+
+/* ── settings ─────────────────────────────────────────────── */
+.sgroup{border:1px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:18px}
+.sgroup-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:18px}
+.sgroup-head h3{font-family:var(--font-display);font-size:15.5px;font-weight:650;margin:0;letter-spacing:-0.01em}
+.sgroup-head .sg-note{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.gap-row{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-bottom:6px}
+.gap-item label{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--fg);margin-bottom:10px}
+.gap-item label b{font-family:var(--font-mono);font-weight:600;font-size:13px;color:var(--accent)}
+.gap-ctrl{display:flex;align-items:center;gap:12px}
+input[type=range]{flex:1;appearance:none;height:4px;border-radius:2px;background:var(--border);accent-color:var(--accent);cursor:pointer}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--surface);border:1px solid var(--accent);cursor:grab;box-shadow:0 1px 2px color-mix(in oklch,var(--fg) 20%,transparent)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--surface);border:1px solid var(--accent);cursor:grab}
+input[type=number]{
+  width:58px;font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:13px;
+  padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--fg);text-align:center;
+}
+input[type=number]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.gap-item.invalid input[type=number]{border-color:var(--danger)}
+.gap-hint{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:8px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--border)}
+.toggle-row:last-of-type{border-bottom:0;padding-bottom:0}
+.toggle-row .tr-title{font-size:14px;font-weight:500}
+.toggle-row .tr-note{font-size:12px;color:var(--muted);max-width:44ch}
+.switch{width:42px;height:24px;border-radius:999px;background:var(--border);position:relative;transition:background .16s ease;flex:none}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--surface);box-shadow:0 1px 3px color-mix(in oklch,var(--fg) 25%,transparent);transition:transform .16s ease}
+.switch[aria-checked="true"]{background:var(--accent)}
+.switch[aria-checked="true"]::after{transform:translateX(18px)}
+.theme-cards{display:flex;gap:12px}
+.theme-card{
+  flex:1;text-align:left;border:1px solid var(--border);border-radius:10px;padding:14px 16px;
+  display:flex;align-items:center;gap:12px;transition:border-color .13s ease,background .13s ease;
+}
+.theme-card:hover{border-color:color-mix(in oklch,var(--fg) 26%,transparent)}
+.theme-card[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.theme-card .tc-dot{width:26px;height:26px;border-radius:7px;border:1px solid var(--border);flex:none}
+.theme-card .tc-dot.dark{background:oklch(20% 0.012 250)}
+.theme-card .tc-dot.light{background:oklch(97% 0.004 250)}
+.theme-card b{display:block;font-size:14px;font-weight:600}
+.theme-card span{font-size:12px;color:var(--muted)}
+.app-add{display:flex;gap:8px;margin:14px 0 10px}
+.app-add input{
+  flex:1;font-family:var(--font-mono);font-size:13px;padding:8px 12px;border:1px solid var(--border);
+  border-radius:8px;background:var(--bg);color:var(--fg);
+}
+.app-add input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.app-add button{font-size:12.5px;font-weight:600;padding:8px 14px;border:1px solid var(--border);border-radius:8px;color:var(--fg)}
+.app-add button:hover{border-color:color-mix(in oklch,var(--fg) 30%,transparent)}
+.app-list{display:flex;flex-direction:column;gap:6px}
+.app-row{
+  display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;border:1px solid var(--border);border-radius:9px;background:var(--bg);
+}
+.app-row .mono{font-family:var(--font-mono);font-size:13px;font-weight:600}
+.app-row .app-state{font-size:11px;color:var(--muted);margin-left:2px}
+.app-row button{margin-left:auto;color:var(--muted);padding:5px 7px;border-radius:6px}
+.app-row button:hover{color:var(--danger);background:var(--danger-soft)}
+.app-row button svg{width:13px;height:13px}
+.empty-note{font-size:12.5px;color:var(--muted);border:1px dashed var(--border);border-radius:9px;padding:12px 14px}
+.danger{border-color:color-mix(in oklch,var(--danger) 32%,transparent)}
+.danger-outline{
+  font-size:13px;font-weight:600;color:var(--danger);border:1px solid color-mix(in oklch,var(--danger) 45%,transparent);
+  padding:9px 16px;border-radius:8px;transition:background .13s ease,color .13s ease;
+}
+.danger-outline:hover{background:var(--danger-soft)}
+.confirm-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;padding:12px 16px;border:1px solid color-mix(in oklch,var(--danger) 40%,transparent);border-radius:10px;background:var(--danger-soft)}
+.confirm-bar p{margin:0;font-size:13px;font-weight:500;color:var(--fg)}
+.confirm-bar .ghost-btn{border-color:color-mix(in oklch,var(--fg) 24%,transparent);color:var(--fg)}
+.confirm-bar .go{font-size:13px;font-weight:600;color:oklch(98% 0.01 10);background:var(--danger);border-radius:8px;padding:8px 15px}
+.confirm-bar .go:hover{background:color-mix(in oklch,var(--danger) 86%,black)}
+
+/* ── tray demo ────────────────────────────────────────────── */
+.tray-section{padding:0 0 110px}
+.tray-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+.tray-copy h2{font-family:var(--font-display);font-size:clamp(24px,3vw,32px);letter-spacing:-0.02em;line-height:1.12;margin:0 0 16px}
+.tray-copy .lead{color:var(--muted);font-size:15.5px;max-width:46ch;margin:0 0 26px;text-wrap:pretty}
+.tray-facts{display:flex;flex-direction:column;gap:10px;padding:0;margin:0;list-style:none}
+.tray-facts li{display:flex;gap:12px;font-size:13.5px;color:var(--muted);align-items:baseline}
+.tray-facts li b{font-family:var(--font-mono);font-weight:600;color:var(--fg);font-size:12.5px;min-width:74px}
+.tray-scene{display:flex;flex-direction:column;gap:14px;align-items:flex-end}
+.tray-menu{
+  width:330px;background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  box-shadow:0 20px 50px -20px color-mix(in oklch,var(--fg) 50%,transparent);padding:7px;overflow:hidden;
+}
+.tm-head{display:flex;align-items:center;gap:8px;padding:7px 10px 9px}
+.tm-head .brand-tile{width:20px;height:20px;border-radius:6px}
+.tm-head .brand-tile svg{width:13px;height:13px}
+.tm-head span{font-size:12.5px;font-weight:600}
+.tm-group{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:8px 11px 5px}
+.tm-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px}
+.tm-slot{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;
+  font-size:12px;padding:7px 10px;border-radius:6px;color:var(--fg);transition:background .11s ease;
+}
+.tm-slot:hover{background:var(--fg-soft)}
+.tm-slot .ts-bind{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);white-space:nowrap}
+.tm-div{border:0;border-top:1px solid var(--border);margin:5px 2px}
+.tm-item{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;
+  font-size:12.5px;padding:7px 11px;border-radius:6px;color:var(--fg);transition:background .11s ease;
+}
+.tm-item:hover{background:var(--fg-soft)}
+.tm-item .tm-bind{font-family:var(--font-mono);font-size:9.5px;color:var(--muted)}
+.tm-item .tm-check{width:15px;height:15px;border:1px solid var(--border);border-radius:4px;display:grid;place-items:center;color:var(--accent);flex:none}
+.tm-item .tm-check svg{width:11px;height:11px;opacity:0}
+.tm-item[aria-checked="true"] .tm-check{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.tm-item[aria-checked="true"] .tm-check svg{opacity:1}
+.tm-item.tm-danger{color:var(--danger)}
+.tm-item.tm-danger:hover{background:var(--danger-soft)}
+.taskbar{
+  width:min(560px,100%);height:52px;background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  display:flex;align-items:center;gap:6px;padding:0 16px;
+  box-shadow:0 12px 34px -16px color-mix(in oklch,var(--fg) 45%,transparent);
+}
+.taskbar .tb-pill{width:34px;height:34px;border-radius:7px;background:var(--fg-soft);border:1px solid var(--border)}
+.taskbar .tb-spacer{flex:1}
+.taskbar .tb-tray{width:20px;height:20px;color:var(--fg);margin-right:8px}
+.taskbar .tb-clock{font-family:var(--font-mono);font-size:11px;color:var(--muted);text-align:center;line-height:1.3}
+.taskbar .tb-clock b{display:block;font-weight:600;color:var(--fg);font-size:12px}
+
+/* ── balloon ──────────────────────────────────────────────── */
+.balloon{
+  position:fixed;right:24px;bottom:24px;z-index:50;width:320px;background:var(--surface);
+  border:1px solid var(--border);border-radius:11px;box-shadow:0 18px 46px -18px color-mix(in oklch,var(--fg) 55%,transparent);
+  padding:13px 16px;transform:translateY(12px);opacity:0;pointer-events:none;transition:transform .18s ease,opacity .18s ease;
+}
+.balloon.show{transform:translateY(0);opacity:1}
+.balloon b{display:flex;align-items:center;gap:8px;font-size:13px}
+.balloon b::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.balloon.err b::before{background:var(--danger)}
+.balloon p{margin:4px 0 0;font-size:12.5px;color:var(--muted)}
+
+/* ── footer ───────────────────────────────────────────────── */
+.pagefoot{border-top:1px solid var(--border);padding:36px 0;color:var(--muted);font-size:12.5px}
+.pagefoot-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.pagefoot .mono{font-size:12px}
+
+/* ── responsive ───────────────────────────────────────────── */
+@media (max-width:920px){
+  .container{padding-inline:20px}
+  .app-body{flex-direction:column}
+  .tabs{width:100%;flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--border);padding:10px}
+  .tab{flex:none}
+  .pane{padding:26px 22px 34px}
+  .slot-grid{grid-template-columns:repeat(2,1fr)}
+  .preview-row,.tray-grid{grid-template-columns:1fr}
+  .gap-row{grid-template-columns:1fr}
+  .sc-row{grid-template-columns:1fr;gap:8px}
+  .sc-bind{justify-content:space-between}
+  .stage{padding:44px 0 64px}
+  .tray-section{padding-bottom:70px}
+  .tray-scene{align-items:stretch}
+  .tray-menu{width:100%}
+  .balloon{left:20px;right:20px;width:auto}
+}
+</style>
+</head>
+<body>
+
+<header class="masthead" data-od-id="masthead">
+  <div class="container masthead-inner">
+    <a class="brand" data-od-id="brand" href="#stage">
+      <span class="brand-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4h16M4 4v16M12 4v16M12 8h8M20 8v12M4 14h8M12 18h8"/></svg></span>
+      <span class="brand-name">wintangle</span>
+      <span class="brand-ver">v1.0.0</span>
+    </a>
+    <div class="seg" role="group" aria-label="Theme" data-od-id="theme-switch-top">
+      <button type="button" data-theme-btn="dark" aria-pressed="true">Dark</button>
+      <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+    </div>
+  </div>
+</header>
+
+<main id="content">
+  <section class="stage" data-od-id="stage">
+    <div class="container">
+      <div class="stage-intro">
+        <p class="stage-title">Tile windows with hotkeys. <span class="accent-word">Keyboard only.</span></p>
+        <p class="stage-sub">wintangle is a tray-first window manager for Windows 11 — 16 fixed slots, 18 rebindable chords, gaps that apply live, and a single settings window. No mouse required.</p>
+      </div>
+
+      <div class="app-window" data-od-id="app-window">
+        <div class="titlebar">
+          <svg class="win-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4h16M4 4v16M12 4v16M12 8h8M20 8v12M4 14h8M12 18h8"/></svg>
+          <span class="win-title">Settings <span class="dim">· wintangle</span></span>
+          <div class="win-buttons" aria-hidden="true">
+            <span class="wb" title="Minimize"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 6h9" stroke="currentColor" stroke-width="1"/></svg></span>
+            <span class="wb" title="Maximize"><svg width="12" height="12" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg></span>
+            <span class="wb wb-close" title="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1"/></svg></span>
+          </div>
+        </div>
+        <div class="app-body">
+          <nav class="tabs" aria-label="Settings sections" data-od-id="tabs-rail">
+            <button class="tab" data-tab-btn="layouts" aria-selected="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="7" height="7" rx="1"/><rect x="14" y="4" width="7" height="7" rx="1"/><rect x="3" y="15" width="7" height="5" rx="1"/><rect x="14" y="15" width="7" height="5" rx="1"/></svg>
+              Window layouts
+            </button>
+            <button class="tab" data-tab-btn="shortcuts" aria-selected="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M6 8h.01M9 8h.01M12 8h.01M6 12h.01M9 12h4M6 16h.01M15 16h3"/></svg>
+              Keyboard shortcuts
+            </button>
+            <button class="tab" data-tab-btn="settings" aria-selected="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="17" r="2"/></svg>
+              Settings
+            </button>
+          </nav>
+
+          <div class="pane">
+            <section class="tab-pane active" data-tab="layouts" data-od-id="tab-layouts">
+              <div class="pane-h">
+                <h2>Window layouts</h2>
+              </div>
+              <p class="pane-sub">Sixteen fixed slots. Click a slot to apply it to the focused window — or press its chord. Gaps respect the work area and your window's min / max sizes.</p>
+              <div class="slot-grid" id="slotGrid" data-od-id="slot-grid"></div>
+
+              <div class="preview-row">
+                <div>
+                  <p class="panel-label">Live preview</p>
+                  <div class="desktop" id="desktop">
+                    <span class="desk-slot-label" id="deskSlotLabel">No slot selected</span>
+                    <div class="desk-win" id="deskWin">
+                      <div class="dw-bar"><i></i><i></i><i></i><span id="deskWinTitle">…</span></div>
+                      <div class="dw-body">window</div>
+                    </div>
+                    <div class="desk-taskbar"><i></i><i></i></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="row-between">
+                    <p class="panel-label">Active windows</p>
+                    <button class="ghost-btn" id="refreshBtn" data-od-id="refresh-windows">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8 8 0 0 0-15-3m-1 7a8 8 0 0 0 15 3"/><path d="M20 4v4h-4M4 20v-4h4"/></svg>
+                      Refresh
+                    </button>
+                  </div>
+                  <div class="win-list" id="winList" data-od-id="active-windows"></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="tab-pane" data-tab="shortcuts" data-od-id="tab-shortcuts">
+              <div class="pane-h">
+                <h2>Keyboard shortcuts</h2>
+              </div>
+              <p class="pane-sub">Eighteen actions, every one rebindable. Press <span class="hint">Record</span>, then press a chord — it commits immediately. Esc cancels. Conflicts and modifier-less combos are rejected.</p>
+              <div id="scList" data-od-id="shortcut-list"></div>
+            </section>
+
+            <section class="tab-pane" data-tab="settings" data-od-id="tab-settings">
+              <div class="pane-h">
+                <h2>Settings</h2>
+              </div>
+              <p class="pane-sub">Everything persists to <span class="hint">config.json</span> and applies the instant you change it. Externally edited config is reloaded live.</p>
+
+              <div class="sgroup" data-od-id="group-spacing">
+                <div class="sgroup-head"><h3>Spacing</h3><span class="sg-note">0–50 px</span></div>
+                <div class="gap-row">
+                  <div class="gap-item" data-gap="gap">
+                    <label>Window gap <b id="gapVal">8</b></label>
+                    <div class="gap-ctrl">
+                      <input type="range" id="gapRange" min="0" max="50" value="8" />
+                      <input type="number" id="gapNum" value="8" min="0" max="50" />
+                    </div>
+                    <p class="gap-hint">Space between adjacent windows. Committed on Enter or blur.</p>
+                  </div>
+                  <div class="gap-item" data-gap="edge">
+                    <label>Edge gap <b id="edgeVal">0</b></label>
+                    <div class="gap-ctrl">
+                      <input type="range" id="edgeRange" min="0" max="50" value="0" />
+                      <input type="number" id="edgeNum" value="0" min="0" max="50" />
+                    </div>
+                    <p class="gap-hint">Space between windows and screen edges.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sgroup" data-od-id="group-appearance">
+                <div class="sgroup-head"><h3>Appearance</h3><span class="sg-note">applies instantly</span></div>
+                <div class="theme-cards">
+                  <button class="theme-card" data-theme-card="dark" aria-pressed="true">
+                    <span class="tc-dot dark"></span><span><b>Dark</b><span>Default</span></span>
+                  </button>
+                  <button class="theme-card" data-theme-card="light" aria-pressed="false">
+                    <span class="tc-dot light"></span><span><b>Light</b><span>Window title follows</span></span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="sgroup" data-od-id="group-startup">
+                <div class="sgroup-head"><h3>Startup</h3></div>
+                <div class="toggle-row">
+                  <div><div class="tr-title">Start wintangle when I log in</div><p class="tr-note">A per-user registry entry — no administrator rights required.</p></div>
+                  <button class="switch" id="autostartSw" role="switch" aria-checked="false" aria-label="Autostart"></button>
+                </div>
+              </div>
+
+              <div class="sgroup" data-od-id="group-ignored">
+                <div class="sgroup-head"><h3>Ignored apps</h3><span class="sg-note">never tiled or moved</span></div>
+                <p class="pane-sub" style="margin-bottom:0">Windows from ignored apps are skipped entirely. Manage from here or from the tray menu.</p>
+                <div class="app-add">
+                  <input id="ignoreInput" type="text" placeholder="process name, e.g. steam.exe" spellcheck="false" />
+                  <button id="ignoreAdd" data-od-id="add-ignore">Add</button>
+                </div>
+                <div class="app-list" id="ignoreList" data-od-id="ignored-list"></div>
+              </div>
+
+              <div class="sgroup danger" data-od-id="group-restore">
+                <div class="sgroup-head"><h3>Restore defaults</h3></div>
+                <p class="pane-sub" style="margin-bottom:0">Reset gaps (8 / 0), all 18 shortcuts, autostart and the ignored-app list. Requires confirmation.</p>
+                <div style="margin-top:16px">
+                  <button class="danger-outline" id="restoreBtn" data-od-id="restore-defaults">Restore defaults…</button>
+                </div>
+                <div class="confirm-bar" id="restoreConfirm" hidden>
+                  <p>Reset everything to factory defaults?</p>
+                  <button class="ghost-btn" id="restoreCancel">Cancel</button>
+                  <button class="go" id="restoreGo">Restore defaults</button>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <p class="stage-caption" style="margin-top:18px" >
+        <span class="mono" style="color:var(--muted);font-size:12.5px">WPF · .NET 8 — Windows 11 · tray-first · config.json watched live</span>
+      </p>
+    </div>
+  </section>
+
+  <section class="tray-section" data-od-id="tray-demo">
+    <div class="container tray-grid">
+      <div class="tray-copy">
+        <p class="eyebrow">Tray-first</p>
+        <h2>The whole app lives in the tray.</h2>
+        <p class="lead">Right-click the icon to tile any window into one of the 16 slots, hop monitors, ignore an app, or flip autostart. The menu is rebuilt on every open, so every binding you see here is live.</p>
+        <ul class="tray-facts">
+          <li><b>16 slots</b> halves, quarters, thirds, sixths</li>
+          <li><b>18 chords</b> every one rebindable</li>
+          <li><b>Balloons</b> only when a window can't be moved</li>
+        </ul>
+      </div>
+      <div class="tray-scene">
+        <div class="tray-menu" id="trayMenu" data-od-id="tray-menu"></div>
+        <div class="taskbar">
+          <span class="tb-pill"></span><span class="tb-pill"></span><span class="tb-pill"></span>
+          <span class="tb-spacer"></span>
+          <svg class="tb-tray" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4h16M4 4v16M12 4v16M12 8h8M20 8v12M4 14h8M12 18h8"/></svg>
+          <span class="tb-clock"><b id="clock">9:41</b>20 Aug 2026</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="pagefoot" data-od-id="footer">
+  <div class="container pagefoot-inner">
+    <span>© 2026 wintangle · v1.0.0</span>
+    <span class="mono">config.json · Windows 11 · WPF / .NET 8</span>
+  </div>
+</footer>
+
+<div class="balloon" id="balloon" role="status" aria-live="polite">
+  <b id="balloonTitle">…</b>
+  <p id="balloonMsg"></p>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var TANGLE='M4 4h16M4 4v16M12 4v16M12 8h8M20 8v12M4 14h8M12 18h8';
+
+var SLOTS=[
+ {id:'left-half',    name:'Left half',            mods:['Ctrl','Win'], key:'ArrowLeft',  f:[0,0,.5,1]},
+ {id:'right-half',   name:'Right half',           mods:['Ctrl','Win'], key:'ArrowRight', f:[.5,0,1,1]},
+ {id:'center-half',  name:'Center half',          mods:['Ctrl','Win'], key:'ArrowUp',    f:[.25,0,.75,1]},
+ {id:'tl-quarter',   name:'Top-left quarter',     mods:['Ctrl','Win'], key:'Home',       f:[0,0,.5,.5]},
+ {id:'tr-quarter',   name:'Top-right quarter',    mods:['Ctrl','Win'], key:'PageUp',     f:[.5,0,1,.5]},
+ {id:'bl-quarter',   name:'Bottom-left quarter',  mods:['Ctrl','Win'], key:'End',        f:[0,.5,.5,1]},
+ {id:'br-quarter',   name:'Bottom-right quarter', mods:['Ctrl','Win'], key:'PageDown',   f:[.5,.5,1,1]},
+ {id:'left-third',   name:'Left third',           mods:['Ctrl','Win'], key:'1',          f:[0,0,1/3,1]},
+ {id:'center-third', name:'Center third',         mods:['Ctrl','Win'], key:'2',          f:[1/3,0,2/3,1]},
+ {id:'right-third',  name:'Right third',          mods:['Ctrl','Win'], key:'3',          f:[2/3,0,1,1]},
+ {id:'tl-sixth',     name:'Top-left sixth',       mods:['Ctrl','Win'], key:'4',          f:[0,0,1/3,.5]},
+ {id:'tc-sixth',     name:'Top-center sixth',     mods:['Ctrl','Win'], key:'5',          f:[1/3,0,2/3,.5]},
+ {id:'tr-sixth',     name:'Top-right sixth',      mods:['Ctrl','Win'], key:'6',          f:[2/3,0,1,.5]},
+ {id:'bl-sixth',     name:'Bottom-left sixth',    mods:['Ctrl','Win'], key:'7',          f:[0,.5,1/3,1]},
+ {id:'bc-sixth',     name:'Bottom-center sixth',  mods:['Ctrl','Win'], key:'8',          f:[1/3,.5,2/3,1]},
+ {id:'br-sixth',     name:'Bottom-right sixth',   mods:['Ctrl','Win'], key:'9',          f:[2/3,.5,1,1]}
+];
+var EXTRA=[
+ {id:'prev-mon', name:'Move to previous monitor', mods:['Win','Alt'], key:'ArrowLeft'},
+ {id:'next-mon', name:'Move to next monitor',     mods:['Win','Alt'], key:'ArrowRight'}
+];
+var KEYLBL={ArrowLeft:'←',ArrowRight:'→',ArrowUp:'↑',ArrowDown:'↓',PageUp:'PgUp',PageDown:'PgDn',Home:'Home',End:'End',Delete:'Del',' ':'Space'};
+
+var WINDOWS=[
+ {proc:'Code.exe',   title:'wintangle-app.html — Visual Studio Code', elevated:false},
+ {proc:'notepad.exe',title:'Untitled — Notepad',                      elevated:false},
+ {proc:'Chrome.exe', title:'Windows 11 overview — Google Chrome',     elevated:false},
+ {proc:'pwsh.exe',   title:'wintangle — Package Manager Console',     elevated:true}
+];
+
+var DEFAULTS={
+  gap:8, edge:0, autostart:false, theme:'dark', ignored:[], winIdx:0, slot:null
+};
+
+var state={
+  gap:DEFAULTS.gap, edge:DEFAULTS.edge, autostart:DEFAULTS.autostart,
+  ignored:DEFAULTS.ignored.slice(), winIdx:DEFAULTS.winIdx, slot:DEFAULTS.slot,
+  theme:'dark', tab:'layouts', recording:null, restoreConfirm:false,
+  bind:{}
+};
+SLOTS.concat(EXTRA).forEach(function(s){ state.bind[s.id]={mods:s.mods.slice(), key:s.key}; });
+
+function $(id){ return document.getElementById(id); }
+function setTheme(t){
+  state.theme=t;
+  document.documentElement.setAttribute('data-theme', t);
+  try{ localStorage.setItem('wintangle.theme', t); }catch(e){}
+  document.querySelectorAll('[data-theme-btn]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.themeBtn===t)); });
+  document.querySelectorAll('[data-theme-card]').forEach(function(c){ c.setAttribute('aria-pressed', String(c.dataset.themeCard===t)); });
+}
+function setTab(t){
+  state.tab=t;
+  try{ localStorage.setItem('wintangle.tab', t); }catch(e){}
+  document.querySelectorAll('[data-tab-btn]').forEach(function(b){ b.setAttribute('aria-selected', String(b.dataset.tabBtn===t)); });
+  document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('active', p.dataset.tab===t); });
+  if(t==='layouts'){ requestAnimationFrame(updatePreview); }
+}
+function keycapHTML(b){
+  return b.mods.map(function(m){ return '<span class="keycap">'+m+'</span>'; }).join('') +
+    '<span class="keycap">'+(KEYLBL[b.key]||b.key)+'</span>';
+}
+function bindText(b){ return b.mods.join(' ')+' '+(KEYLBL[b.key]||b.key); }
+function equals(a,b){ return a.key===b.key && a.mods.length===b.mods.length && a.mods.every(function(m){ return b.mods.indexOf(m)>=0; }); }
+
+function renderSlots(){
+  var grid=$('slotGrid');
+  grid.innerHTML=SLOTS.map(function(s){
+    var i=s.f, b=state.bind[s.id];
+    var style='left:'+(i[0]*100)+'%;top:'+(i[1]*100)+'%;width:'+((i[2]-i[0])*100)+'%;height:'+((i[3]-i[1])*100)+'%;';
+    return '<button type="button" class="slot-card" data-slot="'+s.id+'" aria-pressed="'+String(state.slot===s.id)+'" data-od-id="layout-card-'+s.id+'">'+
+      '<span class="slot-prev"><i style="'+style+'"></i></span>'+
+      '<span class="slot-name">'+s.name+'</span>'+
+      '<span class="keycaps">'+keycapHTML(b)+'</span></button>';
+  }).join('');
+  grid.querySelectorAll('.slot-card').forEach(function(c){
+    c.addEventListener('click', function(){ applySlot(c.dataset.slot); });
+  });
+}
+function renderWindows(){
+  var el=$('winList');
+  el.innerHTML=WINDOWS.map(function(w,i){
+    return '<button type="button" class="win-row" data-win="'+i+'" aria-pressed="'+String(state.winIdx===i)+'" data-od-id="win-row-'+w.proc.toLowerCase().replace(/\./g,'')+'">'+
+      '<span style="flex:1;min-width:0"><span class="wp">'+w.proc+'</span><span class="wt">'+w.title+'</span></span>'+
+      (w.elevated?'<span class="badge">elevated</span>':'')+'</button>';
+  }).join('');
+  el.querySelectorAll('.win-row').forEach(function(r){
+    r.addEventListener('click', function(){ state.winIdx=+r.dataset.win; renderWindows(); updatePreview(); syncTrayIgnore(); });
+  });
+}
+function desktopMetrics(){
+  var d=$('desktop');
+  var r=d.getBoundingClientRect();
+  var hTask=r.height*0.09;
+  return {W:r.width, H:r.height-hTask, task:hTask};
+}
+function updatePreview(){
+  var m=desktopMetrics(), win=$('deskWin'), label=$('deskSlotLabel');
+  var e=state.edge, g=state.gap, w=WINDOWS[state.winIdx];
+  $('deskWinTitle').textContent=w.proc+' — '+w.title;
+  win.querySelector('.dw-body').textContent=w.proc.replace(/\.exe$/i,'');
+  if(!state.slot){
+    win.style.left=m.W*0.24+'px'; win.style.top=m.task+m.H*0.3+'px';
+    win.style.width=m.W*0.52+'px'; win.style.height=m.H*0.4+'px';
+    label.textContent='No slot selected — pick a slot';
+    return;
+  }
+  var s=SLOTS.filter(function(x){return x.id===state.slot;})[0], f=s.f;
+  var left=f[0]*m.W+(f[0]===0?e:g);
+  var right=f[2]*m.W-(f[2]===1?e:g);
+  var top=f[1]*m.H+(f[1]===0?e:g);
+  var bottom=f[3]*m.H-(f[3]===1?e:g);
+  win.style.left=left+'px'; win.style.top=(m.task+top)+'px';
+  win.style.width=Math.max(10,right-left)+'px'; win.style.height=Math.max(10,bottom-top)+'px';
+  label.textContent=s.name;
+}
+function applySlot(id){
+  if(WINDOWS[state.winIdx].elevated){
+    balloon('wintangle', WINDOWS[state.winIdx].proc+' is elevated — Windows won’t let wintangle move it.', 'err');
+    return;
+  }
+  state.slot=id;
+  renderSlots(); updatePreview(); syncTrayIgnore();
+}
+function refreshWindows(){
+  var first=WINDOWS.shift(); WINDOWS.push(first);
+  renderWindows(); updatePreview();
+  var b=$('refreshBtn');
+  b.style.transition='transform .3s ease'; b.style.transform='rotate(360deg)';
+  setTimeout(function(){ b.style.transition='none'; b.style.transform=''; },320);
+}
+
+var scRowCache=[];
+function renderShortcuts(){
+  var list=$('scList');
+  var rows=SLOTS.concat(EXTRA).map(function(a){
+    return {id:a.id, name:a.name, group: a.id.indexOf('-mon')>=0?'monitor':(a.name.indexOf('sixth')>=0?'sixth':a.name.indexOf('third')>=0?'third':a.name.indexOf('quarter')>=0?'quarter':'half')};
+  });
+  list.innerHTML='';
+  rows.forEach(function(r){
+    var b=state.bind[r.id];
+    var row=document.createElement('div');
+    row.className='sc-row'+(state.recording===r.id?' error':'');
+    row.dataset.sc=r.id;
+    row.innerHTML=
+      '<div class="sc-name">'+r.name+'<small>'+r.group+'</small></div>'+
+      '<div class="sc-bind"><div class="bind-box'+(state.recording===r.id?' recording':'')+'" data-bindbox>'+keycapHTML(b)+'</div>'+
+        '<button type="button" class="record-btn'+(state.recording===r.id?' recording':'')+'" data-record data-od-id="record-'+r.id+'">'+(state.recording===r.id?'Press chord…':'Record')+'</button>'+
+      '</div>'+
+      '<button type="button" class="reset-btn" data-reset aria-label="Restore default for '+r.name+'" data-od-id="reset-'+r.id+'">'+
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg></button>'+
+      '<p class="sc-err" data-err></p>';
+    list.appendChild(row);
+  });
+  list.querySelectorAll('[data-record]').forEach(function(b){
+    b.addEventListener('click', function(){ startRecord(b.closest('.sc-row').dataset.sc); });
+  });
+  list.querySelectorAll('[data-reset]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var id=b.closest('.sc-row').dataset.sc;
+      var s=SLOTS.concat(EXTRA).filter(function(x){return x.id===id;})[0];
+      state.bind[id]={mods:s.mods.slice(), key:s.key};
+      state.recording=null; renderShortcuts(); renderSlots(); renderTray();
+    });
+  });
+}
+function startRecord(id){
+  if(state.recording){ var old=$('scList').querySelector('[data-sc="'+state.recording+'"]'); if(old){ old.classList.remove('error'); var eb=old.querySelector('[data-err]'); if(eb) eb.textContent=''; } }
+  state.recording=id; renderShortcuts();
+}
+function finishRecord(id, b){
+  state.bind[id]=b; state.recording=null; renderShortcuts(); renderSlots(); renderTray();
+}
+document.addEventListener('keydown', function(e){
+  if(!state.recording) return;
+  e.preventDefault();
+  if(e.key==='Escape'){ state.recording=null; renderShortcuts(); return; }
+  if(['Control','Meta','Alt','Shift'].indexOf(e.key)>=0) return;
+  var mods=[];
+  if(e.ctrlKey) mods.push('Ctrl');
+  if(e.metaKey) mods.push('Win');
+  if(e.altKey) mods.push('Alt');
+  if(e.shiftKey) mods.push('Shift');
+  var row=$('scList').querySelector('[data-sc="'+state.recording+'"]');
+  var err=row.querySelector('[data-err]');
+  if(mods.length===0){
+    row.classList.add('error'); err.textContent='Include at least one modifier (Ctrl, Win, Alt or Shift).';
+    return;
+  }
+  var key=e.key===' '?' ':KEYLBL[e.key]?e.key:e.key.toUpperCase();
+  var conflict=SLOTS.concat(EXTRA).filter(function(a){ return a.id!==state.recording && equals(state.bind[a.id], {mods:mods,key:key}); });
+  if(conflict.length){
+    row.classList.add('error'); err.textContent='That chord is already assigned to “'+conflict[0].name+'”.';
+    return;
+  }
+  finishRecord(state.recording,{mods:mods,key:key});
+  balloon('wintangle', 'Shortcut updated and live.','ok');
+});
+
+function renderGaps(){
+  $('gapVal').textContent=state.gap; $('edgeVal').textContent=state.edge;
+  $('gapRange').value=state.gap; $('gapNum').value=state.gap;
+  $('edgeRange').value=state.edge; $('edgeNum').value=state.edge;
+  $('autostartSw').setAttribute('aria-checked', String(state.autostart));
+  updatePreview();
+}
+function commitGap(kind, raw){
+  var v=parseInt(raw,10);
+  if(isNaN(v)||v<0||v>50){
+    var item=document.querySelector('[data-gap="'+kind+'"]');
+    item.classList.add('invalid');
+    setTimeout(function(){ item.classList.remove('invalid'); },700);
+    renderGaps(); return;
+  }
+  state[kind]=v; renderGaps();
+}
+
+function renderIgnored(){
+  var el=$('ignoreList');
+  if(state.ignored.length===0){
+    el.innerHTML='<p class="empty-note">No ignored apps. Windows from ignored apps are never tiled or moved.</p>';
+  }else{
+    el.innerHTML=state.ignored.map(function(p){
+      return '<div class="app-row"><span class="mono">'+p+'</span><span class="app-state">· ignored</span>'+
+        '<button type="button" data-rm="'+p+'" aria-label="Remove '+p+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg></button></div>';
+    }).join('');
+  }
+  el.querySelectorAll('[data-rm]').forEach(function(b){
+    b.addEventListener('click', function(){
+      state.ignored=state.ignored.filter(function(p){ return p!==b.dataset.rm; });
+      renderIgnored(); syncTrayIgnore();
+    });
+  });
+}
+function syncTrayIgnore(){
+  var proc=WINDOWS[state.winIdx].proc;
+  var item=$('trayMenu').querySelector('[data-tray-ignore]');
+  if(item) item.setAttribute('aria-checked', String(state.ignored.indexOf(proc)>=0));
+}
+function renderTray(){
+  var el=$('trayMenu');
+  el.innerHTML=
+    '<div class="tm-head"><span class="brand-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="'+TANGLE+'"/></svg></span><span>wintangle</span></div>'+
+    '<div class="tm-group">Tile focused window</div>'+
+    '<div class="tm-grid">'+SLOTS.map(function(s){
+      var b=state.bind[s.id];
+      return '<button type="button" class="tm-slot" data-slot="'+s.id+'"><span>'+s.name+'</span><span class="ts-bind">'+bindText(b)+'</span></button>';
+    }).join('')+'</div>'+
+    '<hr class="tm-div"/>'+
+    EXTRA.map(function(a){
+      var b=state.bind[a.id];
+      return '<button type="button" class="tm-item" data-slot="'+a.id+'"><span>'+a.name+'</span><span class="tm-bind">'+bindText(b)+'</span></button>';
+    }).join('')+
+    '<hr class="tm-div"/>'+
+    '<button type="button" class="tm-item" data-tray-ignore aria-checked="false"><span>Ignore '+WINDOWS[state.winIdx].proc+'</span><span class="tm-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></span></button>'+
+    '<button type="button" class="tm-item" data-tray-auto aria-checked="false"><span>Start when I log in</span><span class="tm-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></span></button>'+
+    '<hr class="tm-div"/>'+
+    '<button type="button" class="tm-item" data-tray-settings><span>Settings…</span></button>'+
+    '<button type="button" class="tm-item tm-danger" data-tray-quit><span>Quit</span></button>';
+  el.querySelectorAll('[data-slot]').forEach(function(b){
+    b.addEventListener('click', function(){ applySlot(b.dataset.slot); });
+  });
+  el.querySelector('[data-tray-ignore]').addEventListener('click', function(){
+    var proc=WINDOWS[state.winIdx].proc;
+    state.ignored=state.ignored.indexOf(proc)>=0 ? state.ignored.filter(function(p){return p!==proc;}) : state.ignored.concat([proc]);
+    renderIgnored(); syncTrayIgnore();
+  });
+  var auto=$('trayMenu').querySelector('[data-tray-auto]');
+  auto.addEventListener('click', function(){ state.autostart=!state.autostart; syncTrayAuto(); });
+  $('trayMenu').querySelector('[data-tray-settings]').addEventListener('click', function(){ setTab('settings'); });
+  $('trayMenu').querySelector('[data-tray-quit]').addEventListener('click', function(){ balloon('wintangle','Quit is a demo action in this prototype.','ok'); });
+  syncTrayIgnore(); syncTrayAuto();
+}
+function syncTrayAuto(){
+  var el=$('trayMenu').querySelector('[data-tray-auto]');
+  if(el) el.setAttribute('aria-checked', String(state.autostart));
+}
+
+var balloonTimer=null;
+function balloon(title, msg, kind){
+  $('balloonTitle').textContent=title; $('balloonMsg').textContent=msg;
+  $('balloon').classList.toggle('err', kind==='err');
+  $('balloon').classList.add('show');
+  clearTimeout(balloonTimer);
+  balloonTimer=setTimeout(function(){ $('balloon').classList.remove('show'); },3400);
+}
+
+function initClock(){
+  var d=new Date();
+  var h=d.getHours()%12; if(h===0)h=12;
+  var m=d.getMinutes(); m=m<10?'0'+m:m;
+  var ap=d.getHours()<12?'AM':'PM';
+  $('clock').textContent=h+':'+m+' '+ap;
+}
+
+function init(){
+  setTheme(state.theme);
+  setTab(state.tab);
+  renderSlots(); renderWindows(); renderShortcuts(); renderGaps(); renderIgnored(); renderTray(); updatePreview();
+
+  document.querySelectorAll('[data-theme-btn]').forEach(function(b){
+    b.addEventListener('click', function(){ setTheme(b.dataset.themeBtn); });
+  });
+  document.querySelectorAll('[data-theme-card]').forEach(function(c){
+    c.addEventListener('click', function(){ setTheme(c.dataset.themeCard); });
+  });
+  document.querySelectorAll('[data-tab-btn]').forEach(function(b){
+    b.addEventListener('click', function(){ setTab(b.dataset.tabBtn); });
+  });
+
+  ['gap','edge'].forEach(function(kind){
+    var r=$((kind==='gap'?'gap':'edge')+'Range'), n=$((kind==='gap'?'gap':'edge')+'Num');
+    r.addEventListener('input', function(){ state[kind]=+r.value; renderGaps(); });
+    n.addEventListener('change', function(){ commitGap(kind, n.value); });
+    n.addEventListener('blur', function(){ commitGap(kind, n.value); });
+    n.addEventListener('keydown', function(e){ if(e.key==='Enter') commitGap(kind, n.value); });
+  });
+
+  $('autostartSw').addEventListener('click', function(){ state.autostart=!state.autostart; renderGaps(); syncTrayAuto(); });
+
+  $('ignoreAdd').addEventListener('click', function(){ addIgnore(); });
+  $('ignoreInput').addEventListener('keydown', function(e){ if(e.key==='Enter') addIgnore(); });
+  function addIgnore(){
+    var v=$('ignoreInput').value.trim();
+    if(!v) return;
+    if(state.ignored.indexOf(v)<0) state.ignored.push(v);
+    $('ignoreInput').value='';
+    renderIgnored(); syncTrayIgnore();
+  }
+
+  $('restoreBtn').addEventListener('click', function(){ state.restoreConfirm=true; $('restoreConfirm').hidden=false; });
+  $('restoreCancel').addEventListener('click', function(){ state.restoreConfirm=false; $('restoreConfirm').hidden=true; });
+  $('restoreGo').addEventListener('click', function(){
+    state.gap=8; state.edge=0; state.autostart=false; state.ignored=[];
+    SLOTS.concat(EXTRA).forEach(function(s){ state.bind[s.id]={mods:s.mods.slice(), key:s.key}; });
+    state.restoreConfirm=false; $('restoreConfirm').hidden=true;
+    renderShortcuts(); renderSlots(); renderGaps(); renderIgnored(); renderTray(); updatePreview();
+    balloon('wintangle','Gaps, shortcuts, autostart and ignored apps restored.','ok');
+  });
+
+  $('refreshBtn').addEventListener('click', refreshWindows);
+
+  window.addEventListener('resize', function(){ updatePreview(); });
+  initClock();
+  setInterval(initClock, 30000);
+}
+document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

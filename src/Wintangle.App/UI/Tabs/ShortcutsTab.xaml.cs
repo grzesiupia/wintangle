@@ -1,5 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
+using System.Windows.Shapes;
 using Wintangle.App.Hooks;
 using Wintangle.App.Services;
 using Wintangle.App.UI.Controls;
@@ -8,10 +11,14 @@ using Wintangle.Core.Hotkeys;
 namespace Wintangle.App.UI.Tabs;
 
 /// <summary>
-/// Keyboard Shortcuts tab: one row per action with an inline recorder.
-/// Rows are rebuilt from the config via <see cref="Rebuild"/> (tab activation,
-/// defaults restore). Closing the host must call <see cref="Teardown"/> so the
-/// hook is never left in RecordingMode and recorders are detached.
+/// Keyboard Shortcuts tab (Phase 3): one row per action (18 rows in
+/// <see cref="DefaultHotkeys.Entries"/> order) — name + group label, an inline
+/// recorder (keycap chips + Record/Cancel), and a restore-default button. Rows
+/// are rebuilt from the config via <see cref="Rebuild"/> (tab activation,
+/// defaults restore, after commit/reset). Closing the host must call
+/// <see cref="Teardown"/> so the hook is never left in RecordingMode and
+/// recorders are detached. No success balloon — the binding is committed
+/// silently per the functionality spec.
 /// </summary>
 public partial class ShortcutsTab : UserControl
 {
@@ -56,6 +63,9 @@ public partial class ShortcutsTab : UserControl
         }
     }
 
+    /// <summary>Rebuilds the rows after a commit/reset (chips reflect the live bindings).</summary>
+    public void RefreshShortcuts() => Rebuild();
+
     /// <summary>
     /// Window teardown: cancels any in-flight recording (the hook must never
     /// stay armed) and detaches every recorder from the app-lifetime hook so
@@ -74,21 +84,30 @@ public partial class ShortcutsTab : UserControl
 
     private ShortcutRow CreateShortcutRow(HotkeyAction action)
     {
-        var actionName = new TextBlock
+        // sc-name — 13.5px Medium + mono 10.5px group label.
+        var name = new TextBlock
         {
             Text = UiLabels.ActionName(action),
-            Width = 150,
+            FontSize = 13.5,
+            FontWeight = FontWeights.Medium,
             VerticalAlignment = VerticalAlignment.Center,
         };
+        name.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Fg");
 
-        var restoreButton = new Button
+        var group = new TextBlock
         {
-            Content = "Default",
-            Margin = new Thickness(6, 0, 0, 0),
-            Padding = new Thickness(10, 2, 10, 2),
-            IsEnabled = _config.IsCustomShortcut(action),
+            Text = UiLabels.GroupFor(action),
+            FontSize = 10.5,
+            Margin = new Thickness(0, 1, 0, 0),
         };
+        group.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Muted");
+        group.SetResourceReference(TextBlock.FontFamilyProperty, "Font.Mono");
 
+        var nameStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        nameStack.Children.Add(name);
+        nameStack.Children.Add(group);
+
+        // sc-bind — the inline recorder.
         var recorder = new RebindRecorder
         {
             Hook = _hook,
@@ -111,35 +130,77 @@ public partial class ShortcutsTab : UserControl
         {
             // Capturing the already-effective combo (the default or an
             // identical custom binding) is a no-op: don't persist a redundant
-            // custom entry and don't enable the "Default" button.
+            // custom entry and don't re-enable the "Default" button.
             if (_config.GetShortcut(action) == combo)
             {
                 return;
             }
 
             _config.SetShortcut(action, combo);
-            restoreButton.IsEnabled = _config.IsCustomShortcut(action);
+            RefreshShortcuts();
         };
 
-        restoreButton.Click += (_, _) =>
+        // Reset button — restore-default icon.
+        var reset = new Button
+        {
+            IsEnabled = _config.IsCustomShortcut(action),
+            VerticalAlignment = VerticalAlignment.Center,
+            Content = CreateResetIcon(),
+            ToolTip = $"Restore default for {UiLabels.ActionName(action)}",
+        };
+        reset.SetResourceReference(Button.StyleProperty, "ResetButton");
+        reset.Click += (_, _) =>
         {
             _config.RestoreShortcut(action);
-            recorder.SetHotkey(_config.GetShortcut(action) ?? new Hotkey(0, KeyModifiers.None));
-            restoreButton.IsEnabled = false;
+            RefreshShortcuts();
         };
 
-        var root = new Grid { Margin = new Thickness(0, 5, 0, 5) };
-        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });
-        root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Grid.SetColumn(actionName, 0);
+        // Row — 1fr auto auto, 14px gaps, vertical padding 12, bottom border.
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        nameStack.Margin = new Thickness(0, 0, 14, 0);
+        recorder.Margin = new Thickness(0, 0, 14, 0);
+        Grid.SetColumn(nameStack, 0);
         Grid.SetColumn(recorder, 1);
-        Grid.SetColumn(restoreButton, 2);
-        root.Children.Add(actionName);
-        root.Children.Add(recorder);
-        root.Children.Add(restoreButton);
+        Grid.SetColumn(reset, 2);
+        grid.Children.Add(nameStack);
+        grid.Children.Add(recorder);
+        grid.Children.Add(reset);
+
+        var root = new Border
+        {
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(0, 12, 0, 12),
+            Child = grid,
+        };
+        root.SetResourceReference(Border.BorderBrushProperty, "Brush.Border");
 
         return new ShortcutRow(action, recorder, root);
+    }
+
+    private static Path CreateResetIcon()
+    {
+        var icon = new Path
+        {
+            Data = Geometry.Parse("M3 12a9 9 0 1 0 3-6.7M3 4v4h4"),
+            Width = 14,
+            Height = 14,
+            Stretch = Stretch.Uniform,
+            StrokeThickness = 2,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            StrokeLineJoin = PenLineJoin.Round,
+        };
+        // The icon follows the button's foreground (Muted → Fg on hover).
+        icon.SetBinding(
+            Path.StrokeProperty,
+            new Binding(nameof(Button.Foreground))
+            {
+                RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(Button), 1),
+            });
+        return icon;
     }
 
     /// <summary>
@@ -151,7 +212,7 @@ public partial class ShortcutsTab : UserControl
         var owner = _config.FindActionForHotkey(combo);
         if (owner is { } other && other != action)
         {
-            return $"\"{UiLabels.ActionName(other)}\" already uses {HotkeyLabels.Format(combo)}.";
+            return $"That chord is already assigned to \u201C{UiLabels.ActionName(other)}\u201D.";
         }
 
         return null;
@@ -160,7 +221,7 @@ public partial class ShortcutsTab : UserControl
     /// <summary>One shortcuts-tab row (action label + recorder + restore button).</summary>
     private sealed class ShortcutRow
     {
-        public ShortcutRow(HotkeyAction action, RebindRecorder recorder, Grid root)
+        public ShortcutRow(HotkeyAction action, RebindRecorder recorder, Border root)
         {
             Action = action;
             Recorder = recorder;
@@ -171,6 +232,6 @@ public partial class ShortcutsTab : UserControl
 
         public RebindRecorder Recorder { get; }
 
-        public Grid Root { get; }
+        public Border Root { get; }
     }
 }
