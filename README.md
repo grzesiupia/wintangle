@@ -110,10 +110,13 @@ Download `wintangle-setup.exe` from the [Releases](https://github.com/grzesiupia
 
 ### Build & Test
 ```powershell
+dotnet tool restore   # installs GitVersion CLI (dotnet dotnet-gitversion)
 dotnet restore Wintangle.sln
 dotnet build Wintangle.sln -c Release
 dotnet test tests/Wintangle.Core.Tests -c Release
 ```
+
+Versions are derived automatically from git tags by GitVersion — no manual bumping.
 
 ---
 

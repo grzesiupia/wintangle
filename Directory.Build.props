@@ -8,4 +8,10 @@
     <RollForward>Major</RollForward>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- GitVersion drives Version/FileVersion/AssemblyVersion/InformationalVersion
+         from git history + tags for every project (single source of truth). -->
+    <PackageReference Include="GitVersion.MsBuild" Version="6.8.2" PrivateAssets="all" />
+  </ItemGroup>
+
 </Project>

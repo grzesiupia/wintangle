@@ -2,15 +2,18 @@
 ;
 ; Build from the repository root after publishing:
 ;   dotnet publish src/Wintangle.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o artifacts/publish
-;   iscc build\setup.iss /DAppVersion=1.0.7
+;
+; CI (the Release workflow) always passes /DAppVersion, derived from the
+; GitVersion tag (v1.0.8 -> 1.0.8) — never hard-code a version here.
 ;
 ; The publish output directory can be overridden:
-;   iscc build\setup.iss /DAppVersion=1.0.7 /DSourceDir=C:\path\to\publish
+;   iscc build\setup.iss /DAppVersion=1.0.8 /DSourceDir=C:\path\to\publish
 ;
 ; Relative paths are resolved against this script's directory (build\).
 
 #ifndef AppVersion
-  #define AppVersion "1.0.7"
+  ; Fallback only — the Release workflow always passes /DAppVersion (tag-derived).
+  #define AppVersion "0.0.0"
 #endif
 
 #ifndef SourceDir

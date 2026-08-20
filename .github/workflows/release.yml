@@ -12,23 +12,30 @@ jobs:
   release-windows:
     runs-on: windows-latest
     steps:
+      # GitVersion needs full history + tags; a shallow checkout (default) fails.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
+      # GitVersion.MsBuild (via Directory.Build.props) sets Version, FileVersion,
+      # AssemblyVersion and InformationalVersion from the tag: v1.0.8 -> 1.0.8.
       - name: Publish self-contained
         run: dotnet publish src/Wintangle.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o artifacts/publish
 
-      # Chocolatey package "innosetup" (verified: community.chocolatey.org/packages/innosetup)
-      # installs the official Inno Setup 6 under "C:\Program Files (x86)\Inno Setup 6".
+      # Chocolatey package "innosetup" installs the official Inno Setup 6 under
+      # "C:\Program Files (x86)\Inno Setup 6".
       - name: Install Inno Setup
         shell: pwsh
         run: choco install innosetup --no-progress -y
 
       # ISCC is referenced by full path rather than relying on PATH, which the
       # runner process does not refresh after the choco install above.
+      # /DAppVersion comes from the tag name (v1.0.8 -> 1.0.8), which always
+      # matches the GitVersion-computed version baked into the assembly.
       - name: Build installer
         shell: pwsh
         run: |
