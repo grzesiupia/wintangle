@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -9,6 +10,7 @@ using Wintangle.App.Services;
 using Wintangle.App.UI.Controls;
 using Wintangle.Core.Config;
 using Wintangle.Core.Geometry;
+using Wintangle.Core.Update;
 
 namespace Wintangle.App.UI.Tabs;
 
@@ -25,6 +27,10 @@ namespace Wintangle.App.UI.Tabs;
 public partial class SettingsTab : UserControl
 {
     private readonly ConfigService _config;
+    private readonly UpdateService _updateService = new();
+    private CancellationTokenSource? _updateCts;
+    private ReleaseInfo? _availableRelease;
+    private UpdateState _updateState = UpdateState.Idle;
 
     /// <summary>
     /// Suppresses save/theme/autostart events while the tab is being populated
@@ -64,6 +70,8 @@ public partial class SettingsTab : UserControl
             AutoStartSwitch.IsChecked = _config.GetAutoStartEnabled();
             SyncThemeRadios(_config.Theme);
             RefreshIgnored();
+            CurrentVersionText.Text = UpdateService.CurrentVersion.ToDisplayString();
+            SetUpdateState(UpdateState.Idle);
         }
         finally
         {
@@ -82,11 +90,21 @@ public partial class SettingsTab : UserControl
         LightThemeCard.IsSelected = !isDark;
     }
 
-    /// <summary>Detaches the theme subscription (window teardown).</summary>
+    /// <summary>Detaches the theme subscription and cancels pending update operations (window teardown).</summary>
     public void Teardown()
     {
         _config.ThemeChanged -= OnThemeChanged;
         _invalidFlash?.Stop();
+        try
+        {
+            _updateCts?.Cancel();
+            _updateCts?.Dispose();
+            _updateCts = null;
+        }
+        catch
+        {
+            // Ignore teardown cancellation errors
+        }
     }
 
     // ---- Gap sliders + number boxes ----
@@ -528,6 +546,175 @@ public partial class SettingsTab : UserControl
     {
         _config.RemoveIgnored(name);
         RefreshIgnored();
+    }
+
+    // ---- Updates ----
+
+    private void SetUpdateState(UpdateState state, string? message = null)
+    {
+        _updateState = state;
+        switch (state)
+        {
+            case UpdateState.Idle:
+                CheckUpdatesButton.IsEnabled = true;
+                CheckUpdatesButton.Content = "Check for updates";
+                InstallUpdateButton.Visibility = Visibility.Collapsed;
+                ReleaseNotesButton.Visibility = _availableRelease != null ? Visibility.Visible : Visibility.Collapsed;
+                UpdateProgressBar.Visibility = Visibility.Collapsed;
+                UpdateStatusText.Text = message ?? "Check GitHub for the latest wintangle releases and improvements.";
+                break;
+
+            case UpdateState.Checking:
+                CheckUpdatesButton.IsEnabled = false;
+                CheckUpdatesButton.Content = "Checking…";
+                InstallUpdateButton.Visibility = Visibility.Collapsed;
+                ReleaseNotesButton.Visibility = Visibility.Collapsed;
+                UpdateProgressBar.Visibility = Visibility.Collapsed;
+                UpdateStatusText.Text = "Checking for updates…";
+                break;
+
+            case UpdateState.UpToDate:
+                CheckUpdatesButton.IsEnabled = true;
+                CheckUpdatesButton.Content = "Check for updates";
+                InstallUpdateButton.Visibility = Visibility.Collapsed;
+                ReleaseNotesButton.Visibility = Visibility.Collapsed;
+                UpdateProgressBar.Visibility = Visibility.Collapsed;
+                UpdateStatusText.Text = message ?? $"wintangle {UpdateService.CurrentVersion.ToDisplayString()} is the latest version.";
+                break;
+
+            case UpdateState.UpdateAvailable:
+                CheckUpdatesButton.IsEnabled = true;
+                CheckUpdatesButton.Content = "Check again";
+                InstallUpdateButton.Visibility = !string.IsNullOrEmpty(_availableRelease?.AssetUrl) ? Visibility.Visible : Visibility.Collapsed;
+                InstallUpdateButton.IsEnabled = true;
+                InstallUpdateButton.Content = "Download and Install";
+                ReleaseNotesButton.Visibility = !string.IsNullOrEmpty(_availableRelease?.HtmlUrl) ? Visibility.Visible : Visibility.Collapsed;
+                UpdateProgressBar.Visibility = Visibility.Collapsed;
+                UpdateStatusText.Text = message ?? $"Version {_availableRelease?.Version.ToDisplayString()} is available.";
+                break;
+
+            case UpdateState.Downloading:
+                CheckUpdatesButton.IsEnabled = false;
+                InstallUpdateButton.IsEnabled = false;
+                InstallUpdateButton.Content = "Downloading…";
+                ReleaseNotesButton.Visibility = !string.IsNullOrEmpty(_availableRelease?.HtmlUrl) ? Visibility.Visible : Visibility.Collapsed;
+                UpdateProgressBar.Visibility = Visibility.Visible;
+                UpdateProgressBar.Value = 0;
+                UpdateStatusText.Text = message ?? "Downloading update…";
+                break;
+
+            case UpdateState.Installing:
+                CheckUpdatesButton.IsEnabled = false;
+                InstallUpdateButton.IsEnabled = false;
+                InstallUpdateButton.Content = "Installing…";
+                ReleaseNotesButton.Visibility = Visibility.Collapsed;
+                UpdateProgressBar.Visibility = Visibility.Visible;
+                UpdateProgressBar.Value = 100;
+                UpdateStatusText.Text = "Launching installer and restarting wintangle…";
+                break;
+
+            case UpdateState.Error:
+                CheckUpdatesButton.IsEnabled = true;
+                CheckUpdatesButton.Content = "Check for updates";
+                InstallUpdateButton.Visibility = _availableRelease != null && !string.IsNullOrEmpty(_availableRelease.AssetUrl) ? Visibility.Visible : Visibility.Collapsed;
+                InstallUpdateButton.IsEnabled = true;
+                ReleaseNotesButton.Visibility = _availableRelease != null ? Visibility.Visible : Visibility.Collapsed;
+                UpdateProgressBar.Visibility = Visibility.Collapsed;
+                UpdateStatusText.Text = message ?? "An error occurred during update.";
+                break;
+        }
+    }
+
+    private async void CheckUpdatesButton_Click(object sender, RoutedEventArgs e)
+    {
+        _updateCts?.Cancel();
+        _updateCts?.Dispose();
+        _updateCts = new CancellationTokenSource();
+        var ct = _updateCts.Token;
+
+        SetUpdateState(UpdateState.Checking);
+
+        try
+        {
+            var result = await _updateService.CheckAsync(ct);
+            if (!result.Success)
+            {
+                SetUpdateState(UpdateState.Error, $"Update check failed: {result.ErrorMessage}");
+                return;
+            }
+
+            if (result.IsUpdateAvailable && result.Release != null)
+            {
+                _availableRelease = result.Release;
+                SetUpdateState(UpdateState.UpdateAvailable, $"Version {result.Release.Version.ToDisplayString()} is available.");
+            }
+            else
+            {
+                _availableRelease = null;
+                SetUpdateState(UpdateState.UpToDate, $"wintangle {UpdateService.CurrentVersion.ToDisplayString()} is up to date.");
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            SetUpdateState(UpdateState.Idle);
+        }
+        catch (Exception ex)
+        {
+            SetUpdateState(UpdateState.Error, $"Update check failed: {ex.Message}");
+        }
+    }
+
+    private async void InstallUpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_availableRelease == null)
+        {
+            return;
+        }
+
+        _updateCts?.Cancel();
+        _updateCts?.Dispose();
+        _updateCts = new CancellationTokenSource();
+        var ct = _updateCts.Token;
+
+        SetUpdateState(UpdateState.Downloading, "Downloading update… 0%");
+
+        var progress = new Progress<double>(p =>
+        {
+            UpdateProgressBar.Value = p * 100;
+            UpdateStatusText.Text = $"Downloading update… {(int)(p * 100)}%";
+        });
+
+        try
+        {
+            string installerPath = await _updateService.DownloadAsync(_availableRelease, progress, ct);
+            SetUpdateState(UpdateState.Installing);
+            UpdateService.LaunchInstallerAndQuit(installerPath);
+        }
+        catch (OperationCanceledException)
+        {
+            SetUpdateState(UpdateState.UpdateAvailable);
+        }
+        catch (Exception ex)
+        {
+            SetUpdateState(UpdateState.Error, $"Download failed: {ex.Message}");
+        }
+    }
+
+    private void ReleaseNotesButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_availableRelease == null || string.IsNullOrWhiteSpace(_availableRelease.HtmlUrl))
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(_availableRelease.HtmlUrl) { UseShellExecute = true });
+        }
+        catch
+        {
+            // Ignore failure to launch browser
+        }
     }
 
     // ---- Restore defaults ----

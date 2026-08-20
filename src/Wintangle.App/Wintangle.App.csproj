@@ -8,9 +8,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\wintangle.ico</ApplicationIcon>
     <StartupObject>Wintangle.App.Program</StartupObject>
-    <Version>1.0.5</Version>
+    <Version>1.0.6</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.5.0</FileVersion>
+    <FileVersion>1.0.6.0</FileVersion>
     <Product>wintangle</Product>
     <Company>wintangle contributors</Company>
   </PropertyGroup>

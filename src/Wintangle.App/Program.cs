@@ -6,6 +6,7 @@ using Wintangle.App.Interop;
 using Wintangle.App.Services;
 using Wintangle.App.Tray;
 using Wintangle.App.UI;
+using Wintangle.App.UI.Tray;
 using Wintangle.Core.Config;
 using Wintangle.Core.Hotkeys;
 
@@ -133,6 +134,8 @@ public static class Program
         // dispatcher queue has not been pumped yet, and is a no-op afterwards.
         (Application.Current as App)?.ApplyTheme(s_config.Current.Theme);
 
+        _ = CheckForUpdatesOnStartupAsync();
+
         // Runs the WPF dispatcher message loop. No window is shown — the
         // hidden host window routes tray notifications; hotkeys dispatch on
         // the dedicated hook thread.
@@ -214,6 +217,8 @@ public static class Program
         }
     }
 
+    internal static void RequestQuit() => Quit();
+
     private static void Quit()
     {
         try
@@ -223,6 +228,24 @@ public static class Program
         finally
         {
             Application.Current.Shutdown();
+        }
+    }
+
+    private static async Task CheckForUpdatesOnStartupAsync()
+    {
+        try
+        {
+            await Task.Delay(3000).ConfigureAwait(false);
+            var updateService = new UpdateService();
+            var result = await updateService.CheckAsync().ConfigureAwait(false);
+            if (result.Success && result.IsUpdateAvailable && result.Release != null)
+            {
+                ToastWindow.ShowToast("wintangle update", $"v{result.Release.Version} is available. Open Settings to install.", false);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Startup update check failed: {ex.Message}");
         }
     }
 

@@ -219,6 +219,53 @@
             </StackPanel>
         </Border>
 
+        <!-- ── Updates ──────────────────────────────────────────────────── -->
+        <Border Style="{DynamicResource SGroup}">
+            <StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{DynamicResource SGroupHead}" Text="Updates" />
+                    <TextBlock x:Name="CurrentVersionText"
+                               Grid.Column="1"
+                               Style="{DynamicResource SGroupNote}"
+                               Text="v1.0.5" />
+                </Grid>
+                <TextBlock x:Name="UpdateStatusText"
+                           Style="{DynamicResource PaneSub}"
+                           Margin="0,6,0,0"
+                           Text="Check GitHub for the latest wintangle releases and improvements." />
+
+                <ProgressBar x:Name="UpdateProgressBar"
+                             Style="{DynamicResource AppProgressBar}"
+                             Margin="0,12,0,0"
+                             Visibility="Collapsed"
+                             Minimum="0"
+                             Maximum="100" />
+
+                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button x:Name="CheckUpdatesButton"
+                            Style="{DynamicResource GhostButton}"
+                            Content="Check for updates"
+                            Click="CheckUpdatesButton_Click" />
+                    <Button x:Name="InstallUpdateButton"
+                            Style="{DynamicResource AccentButton}"
+                            Content="Download and Install"
+                            Margin="8,0,0,0"
+                            Visibility="Collapsed"
+                            Click="InstallUpdateButton_Click" />
+                    <Button x:Name="ReleaseNotesButton"
+                            Style="{DynamicResource GhostButton}"
+                            Content="View release notes"
+                            Margin="8,0,0,0"
+                            Visibility="Collapsed"
+                            Click="ReleaseNotesButton_Click" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
         <!-- ── Restore defaults ─────────────────────────────────────────── -->
         <Border Style="{DynamicResource SGroup}"
                 BorderBrush="{DynamicResource Brush.DangerBorder32}">
