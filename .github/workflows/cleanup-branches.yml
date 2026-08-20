@@ -17,7 +17,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          PROTECTED="main develop"
+          PROTECTED=$'main\ndevelop'
           gh api --paginate \
             "repos/${{ github.repository }}/pulls?state=closed&per_page=100&sort=updated&direction=desc" \
             | jq -r '.[] | select(.merged_at != null) | .head.ref' \
