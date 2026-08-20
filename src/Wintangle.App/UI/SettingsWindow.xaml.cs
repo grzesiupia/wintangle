@@ -14,19 +14,19 @@ using Wintangle.Core.Hotkeys;
 namespace Wintangle.App.UI;
 
 /// <summary>
-/// Settings dialog: three themed tabs (window layouts, keyboard shortcuts,
-/// settings) in a custom-chrome window (WindowChrome caption + DWM rounded
-/// corners). At most one instance exists at a time (<see cref="ShowOrActivate"/>);
-/// each open is a fresh window populated from the current config — no stale
-/// state. All changes persist immediately through <see cref="ConfigService"/>.
+/// Settings dialog: two themed tabs (keyboard shortcuts, settings) in a
+/// custom-chrome window (WindowChrome caption + DWM rounded corners). At most
+/// one instance exists at a time (<see cref="ShowOrActivate"/>); each open is a
+/// fresh window populated from the current config — no stale state. All changes
+/// persist immediately through <see cref="ConfigService"/>.
 /// </summary>
 /// <remarks>
 /// The window draws its own titlebar (no system caption), follows
-/// <see cref="ConfigService.ThemeChanged"/> live (theme swaps repaint the
-/// layout previews and re-sync the settings theme cards), and clamps
-/// WM_GETMINMAXINFO so maximized fills the monitor's work area instead of
-/// covering the taskbar. Closing the window tears down the shortcut recorders
-/// so the keyboard hook is never left in RecordingMode.
+/// <see cref="ConfigService.ThemeChanged"/> live (theme swaps re-sync the
+/// settings theme cards), and clamps WM_GETMINMAXINFO so maximized fills the
+/// monitor's work area instead of covering the taskbar. Closing the window
+/// tears down the shortcut recorders so the keyboard hook is never left in
+/// RecordingMode.
 /// </remarks>
 public partial class SettingsWindow : Window
 {
@@ -39,13 +39,12 @@ public partial class SettingsWindow : Window
     private IntPtr _hwnd;
     private HwndSource? _source;
 
-    private LayoutsTab? _layoutsPanel;
     private ShortcutsTab? _shortcutsPanel;
     private SettingsTab? _settingsPanel;
 
-    private string _activeTab = "layouts";
+    private string _activeTab = "shortcuts";
 
-    internal SettingsWindow(ConfigService config, KeyboardHook hook, Action<HotkeyAction>? applyPreset = null)
+    internal SettingsWindow(ConfigService config, KeyboardHook hook)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _hook = hook ?? throw new ArgumentNullException(nameof(hook));
@@ -53,19 +52,17 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         LoadHeaderIcon();
 
-        _layoutsPanel = new LayoutsTab(config, applyPreset);
         _shortcutsPanel = new ShortcutsTab(config, hook);
         _settingsPanel = new SettingsTab(config);
         _settingsPanel.DefaultsRestored += OnDefaultsRestored;
 
-        LayoutsHost.Content = _layoutsPanel;
         ShortcutsHost.Content = _shortcutsPanel;
         SettingsHost.Content = _settingsPanel;
 
         _config.ThemeChanged += OnThemeChanged;
         StateChanged += OnWindowStateChanged;
 
-        ShowTab("layouts");
+        ShowTab("shortcuts");
 
         Closed += (_, _) => Teardown();
     }
@@ -80,7 +77,7 @@ public partial class SettingsWindow : Window
     /// invisible in Release), the static singleton is reset so a later open can
     /// retry instead of no-oping forever against a stale non-null reference.
     /// </remarks>
-    internal static void ShowOrActivate(ConfigService config, KeyboardHook hook, Action<HotkeyAction>? applyPreset = null)
+    internal static void ShowOrActivate(ConfigService config, KeyboardHook hook)
     {
         if (s_openWindow != null)
         {
@@ -100,7 +97,7 @@ public partial class SettingsWindow : Window
         SettingsWindow? window = null;
         try
         {
-            window = new SettingsWindow(config, hook, applyPreset);
+            window = new SettingsWindow(config, hook);
             s_openWindow = window;
             window.Closed += (_, _) => s_openWindow = null;
             window.Show();
@@ -277,20 +274,15 @@ public partial class SettingsWindow : Window
     }
 
     /// <summary>
-    /// Theme swap hook: repaints the layout previews and re-syncs the settings
-    /// tab's theme cards (the tab also self-subscribes; both paths are
-    /// idempotent).
+    /// Theme swap hook: re-syncs the settings tab's theme cards (the tab also
+    /// self-subscribes; both paths are idempotent).
     /// </summary>
     private void ApplyThemeUi(string theme)
     {
-        // Preview brushes are resolved at render time — repaint them.
-        _layoutsPanel?.RefreshPreviews();
         _settingsPanel?.SyncThemeRadios(theme);
     }
 
     // ---- Tab activation ----
-
-    private void LayoutsTabButton_Click(object sender, RoutedEventArgs e) => ShowTab("layouts");
 
     private void ShortcutsTabButton_Click(object sender, RoutedEventArgs e) => ShowTab("shortcuts");
 
@@ -298,13 +290,11 @@ public partial class SettingsWindow : Window
 
     /// <summary>
     /// Swaps the visible pane and runs that tab's refresh hook. The tabs share
-    /// the shell's public surface (LayoutsTab.RefreshShortcuts/
-    /// RefreshActiveWindows/UpdatePreview, ShortcutsTab.Rebuild, SettingsTab
+    /// the shell's public surface (ShortcutsTab.Rebuild, SettingsTab
     /// auto-syncs via its own ThemeChanged subscription).
     /// </summary>
     private void ShowTab(string name)
     {
-        bool layouts = name == "layouts";
         bool shortcuts = name == "shortcuts";
         bool settings = name == "settings";
 
@@ -316,17 +306,10 @@ public partial class SettingsWindow : Window
             _shortcutsPanel?.Rebuild();
         }
 
-        LayoutsScroll.Visibility = layouts ? Visibility.Visible : Visibility.Collapsed;
         ShortcutsScroll.Visibility = shortcuts ? Visibility.Visible : Visibility.Collapsed;
         SettingsScroll.Visibility = settings ? Visibility.Visible : Visibility.Collapsed;
 
-        if (layouts)
-        {
-            _layoutsPanel?.RefreshShortcuts();
-            _layoutsPanel?.RefreshActiveWindows();
-            _layoutsPanel?.UpdatePreview();
-        }
-        else if (shortcuts)
+        if (shortcuts)
         {
             _shortcutsPanel?.Rebuild();
         }
@@ -340,10 +323,9 @@ public partial class SettingsWindow : Window
     {
         // RestoreDefaults already fired ThemeChanged when the theme actually
         // changed; this covers the same-theme case (cards re-sync either way)
-        // and rebuilds the shortcut rows + layout chips.
+        // and rebuilds the shortcut rows.
         _settingsPanel?.SyncThemeRadios(_config.Theme);
         _shortcutsPanel?.Rebuild();
-        _layoutsPanel?.RefreshShortcuts();
     }
 
     // ---- Lifecycle ----
@@ -352,7 +334,6 @@ public partial class SettingsWindow : Window
     {
         _config.ThemeChanged -= OnThemeChanged;
         _hook.RecordingMode = false;
-        _layoutsPanel?.Teardown();
         _shortcutsPanel?.Teardown();
         _settingsPanel?.Teardown();
     }

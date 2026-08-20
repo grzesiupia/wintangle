@@ -200,27 +200,9 @@ public static class Program
             return;
         }
 
-        // Capture the foreground window BEFORE activating settings: preset
-        // applies must target the window the user was working in, not the
-        // settings window itself. The hidden host window never counts as a
-        // target (it is only foreground during the tray-menu dance).
-        var foreground = WindowApi.GetForegroundWindow();
-        if (foreground == s_hostHwnd)
-        {
-            foreground = IntPtr.Zero;
-        }
-
-        Action<HotkeyAction> apply = action =>
-        {
-            if (foreground != IntPtr.Zero)
-            {
-                s_dispatcher?.ApplyToHwnd(foreground, action, s_state!.Gaps);
-            }
-        };
-
         try
         {
-            SettingsWindow.ShowOrActivate(s_config, s_hook, apply);
+            SettingsWindow.ShowOrActivate(s_config, s_hook);
         }
         catch (Exception ex)
         {

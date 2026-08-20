@@ -29,6 +29,9 @@
     <SolidColorBrush x:Key="Brush.Muted60" Color="#A6A9AD" />
     <SolidColorBrush x:Key="Brush.DangerBorder32" Color="#52C9302D" />
     <SolidColorBrush x:Key="Brush.FgHoverBorder" Color="#C5C6C7" />
+    <SolidColorBrush x:Key="Brush.ScrollThumb" Color="#D0D5DC" />
+    <SolidColorBrush x:Key="Brush.ScrollThumbHover" Color="#9CA7B5" />
+    <SolidColorBrush x:Key="Brush.ScrollThumbActive" Color="#1779E1" />
 
     <LinearGradientBrush x:Key="Brush.HeaderSheen" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#40FFFFFF" Offset="0.0" />

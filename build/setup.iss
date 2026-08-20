@@ -25,6 +25,9 @@ AppVersion={#AppVersion}
 AppVerName=wintangle {#AppVersion}
 AppPublisher=wintangle contributors
 AppPublisherURL=https://github.com/wintangle/wintangle
+AppSupportURL=https://github.com/wintangle/wintangle/issues
+AppUpdatesURL=https://github.com/wintangle/wintangle/releases
+AppCopyright=Copyright (C) 2024-2026 wintangle contributors
 DefaultDirName={userpf}\wintangle
 DefaultGroupName=wintangle
 DisableProgramGroupPage=yes
@@ -41,6 +44,7 @@ SetupIconFile=..\src\Wintangle.App\Assets\wintangle.ico
 ; The app is published as win-x64 self-contained; restrict to 64-bit (incl. ARM64 emulation).
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+UninstallDisplayName=wintangle
 UninstallDisplayIcon={app}\Wintangle.App.exe
 CloseApplications=yes
 
@@ -48,12 +52,21 @@ CloseApplications=yes
 ; Everything from the publish output: the single-file Wintangle.App.exe plus
 ; the WPF native runtime DLLs (D3DCompiler_47_cor3.dll, PresentationNative_cor3.dll, ...).
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; JetBrains Mono fonts bundled for clean typography on systems without it pre-installed.
+Source: "..\assets\fonts\*.ttf"; DestDir: "{autofonts}"; FontInstall: "JetBrains Mono"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
 ; No IconFilename set: Inno Setup auto-picks the first icon embedded in the
 ; .exe (Assets/wintangle.ico via ApplicationIcon in the csproj — verified
 ; assumption; keep the Icons section in sync if that changes).
 Name: "{autoprograms}\wintangle"; Filename: "{app}\Wintangle.App.exe"
+
+[Registry]
+; Clean up the autostart Run key entry if the user enabled it during application usage.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "wintangle"; Flags: dontcreatekey uninsdeletevalue
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}"
 
 [Run]
 Filename: "{app}\Wintangle.App.exe"; Description: "Launch wintangle"; Flags: nowait postinstall skipifsilent

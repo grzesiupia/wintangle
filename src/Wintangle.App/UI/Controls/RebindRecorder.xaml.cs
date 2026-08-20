@@ -227,8 +227,8 @@ public partial class RebindRecorder : UserControl
             }
             else
             {
-                chip.ClearValue(Border.BorderBrushProperty);
-                text.ClearValue(TextBlock.ForegroundProperty);
+                chip.SetResourceReference(Border.BorderBrushProperty, "Brush.Border");
+                text.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Muted");
             }
         }
     }
