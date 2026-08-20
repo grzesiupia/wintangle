@@ -10,8 +10,8 @@ Tile the focused window into one of 16 fixed slots with a hotkey chord. No dragg
 
 *Created because Windows lacks a keyboard-first window management tool like [Rectangle](https://github.com/rxhanson/rectangle): the great macOS window manager.*
 
-[![CI](https://img.shields.io/badge/CI-passing-brightgreen.svg)](https://github.com/wintangle/wintangle/actions)
-[![Release](https://img.shields.io/github/v/release/wintangle/wintangle?color=blue&label=release)](https://github.com/wintangle/wintangle/releases)
+[![CI](https://img.shields.io/badge/CI-passing-brightgreen.svg)](https://github.com/grzesiupia/wintangle/actions)
+[![Release](https://img.shields.io/github/v/release/grzesiupia/wintangle?color=blue&label=release)](https://github.com/grzesiupia/wintangle/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2011%20x64-0078d4.svg)](#install)
 [![Stack](https://img.shields.io/badge/.NET-8.0%20%7C%20WPF-512bd4.svg)](#build-from-source)
@@ -90,7 +90,7 @@ All shortcuts can be rebound in the Settings window.
 
 ## Install
 
-Download `wintangle-setup.exe` from the [Releases](https://github.com/wintangle/wintangle/releases) page.
+Download `wintangle-setup.exe` from the [Releases](https://github.com/grzesiupia/wintangle/releases) page.
 
 - Per-user install, no admin rights needed.
 - Self-contained: no .NET runtime required.
