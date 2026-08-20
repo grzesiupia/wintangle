@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop, 'feature/**', 'fix/**', 'hotfix/**']
+    tags: ['v*']
   pull_request:
 
 jobs:
@@ -10,7 +11,10 @@ jobs:
   test-core:
     runs-on: ubuntu-latest
     steps:
+      # GitVersion needs full history + tags; a shallow checkout (default) fails.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # NOTE: setup-dotnet's `cache: true` requires a packages.lock.json in
       # the workspace root and hard-fails when it is absent. This repo has no
@@ -28,10 +32,24 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+
+      # Compute the GitVersion semver once, from the same config GitVersion.MsBuild
+      # uses during build, so the artifact name matches the baked-in version.
+      # (GitVersion 6 prints pretty multi-line JSON — pwsh joins the pipeline
+      # before ConvertFrom-Json parses it.)
+      - name: Compute version
+        shell: pwsh
+        run: |
+          dotnet tool restore
+          $gv = (dotnet dotnet-gitversion /output json | Out-String) | ConvertFrom-Json
+          Write-Host "Version: $($gv.SemVer)"
+          "GV_SEMVER=$($gv.SemVer)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build solution
         run: dotnet build Wintangle.sln -c Release
@@ -42,5 +60,76 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wintangle-win-x64
+          name: wintangle-${{ env.GV_SEMVER }}-win-x64
           path: artifacts/publish
+
+  # Release fires ONLY on tag pushes (v*) and only after tests + build are green.
+  # The tag ref itself is checked out, so GitVersion resolves exactly the tagged
+  # version (v1.0.8 -> 1.0.8).
+  release:
+    runs-on: windows-latest
+    needs: [test-core, build-windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # Same manifest/config as build-windows; on a tag this is the exact
+      # release version (no prerelease suffix).
+      - name: Compute version
+        shell: pwsh
+        run: |
+          dotnet tool restore
+          $gv = (dotnet dotnet-gitversion /output json | Out-String) | ConvertFrom-Json
+          "GV_SEMVER=$($gv.SemVer)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wintangle-${{ env.GV_SEMVER }}-win-x64
+          path: artifacts/publish
+
+      # Chocolatey package "innosetup" installs the official Inno Setup 6 under
+      # "C:\Program Files (x86)\Inno Setup 6".
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      # ISCC is referenced by full path rather than relying on PATH, which the
+      # runner process does not refresh after the choco install above.
+      # /DAppVersion comes from the tag name (v1.0.8 -> 1.0.8), which always
+      # matches the GitVersion-computed version baked into the assembly.
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc "build\setup.iss" "/DAppVersion=$version"
+
+      # Standard sha256sum format: "<hex>  wintangle-setup.exe"
+      - name: Compute installer checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -Algorithm SHA256 "build/Output/wintangle-setup.exe").Hash
+          "$hash  wintangle-setup.exe" | Set-Content -Path "build/Output/wintangle-setup.exe.sha256" -Encoding ascii
+
+      # The raw self-contained exe is intentionally NOT staged: releases carry
+      # only the installer (single-file binary is embedded in the setup) plus
+      # the SHA256 checksum asset.
+      - name: Create GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "build/Output/wintangle-setup.exe" \
+            --title "wintangle $GITHUB_REF_NAME" \
+            --generate-notes
+          gh release upload "$GITHUB_REF_NAME" "build/Output/wintangle-setup.exe.sha256"

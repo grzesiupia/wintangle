@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "GitVersion.Tool": {
+      "version": "6.8.2",
+      "commands": [
+        "dotnet-gitversion"
+      ]
+    }
+  }
+}

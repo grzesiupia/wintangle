@@ -15,6 +15,10 @@ public class ReleaseVersionTests
     [InlineData("v1.0.5-rc.1+2023", 1, 0, 5)]
     [InlineData("  v2.1.0  ", 2, 1, 0)]
     [InlineData("v1.2+build456", 1, 2, 0)]
+    [InlineData("1.0.8-alpha.1+5", 1, 0, 8)]
+    [InlineData("1.0.8-feature-x.1+3", 1, 0, 8)]
+    [InlineData("1.0.8-hotfix.1+1", 1, 0, 8)]
+    [InlineData("1.0.8+5", 1, 0, 8)]
     public void TryParse_ValidInputs_ReturnsTrueAndCorrectVersion(string input, int major, int minor, int patch)
     {
         bool success = ReleaseVersion.TryParse(input, out var version);
