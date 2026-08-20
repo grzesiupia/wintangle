@@ -140,13 +140,13 @@ internal sealed class WindowDispatcher
             hProcess = ElevationApi.OpenProcess(ElevationApi.PROCESS_QUERY_LIMITED_INFORMATION, false, target.ProcessId);
             if (hProcess == IntPtr.Zero)
             {
-                Balloon("wintangle", "Can't inspect that window's process — skipped.");
+                Balloon("Wintangle", "Can't inspect that window's process — skipped.");
                 return false;
             }
 
             if (!ElevationApi.OpenProcessToken(hProcess, ElevationApi.TOKEN_QUERY, out hToken) || hToken == IntPtr.Zero)
             {
-                Balloon("wintangle", "Can't inspect that window's elevation — skipped.");
+                Balloon("Wintangle", "Can't inspect that window's elevation — skipped.");
                 return false;
             }
 
@@ -157,13 +157,13 @@ internal sealed class WindowDispatcher
                     (uint)Marshal.SizeOf<TOKEN_ELEVATION>(),
                     out _))
             {
-                Balloon("wintangle", "Can't read that window's elevation — skipped.");
+                Balloon("Wintangle", "Can't read that window's elevation — skipped.");
                 return false;
             }
 
             if (elevation.TokenIsElevated != 0)
             {
-                Balloon("wintangle", "wintangle can't move elevated windows from a non-elevated session.");
+                Balloon("Wintangle", "wintangle can't move elevated windows from a non-elevated session.");
                 return false;
             }
 

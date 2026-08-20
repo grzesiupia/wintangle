@@ -20,6 +20,7 @@ public class Switch : ToggleButton
 
     public Switch()
     {
+        SetResourceReference(StyleProperty, "Switch");
         Checked += OnToggled;
         Unchecked += OnToggled;
     }

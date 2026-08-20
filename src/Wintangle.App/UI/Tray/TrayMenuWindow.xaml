@@ -1,7 +1,7 @@
 <Window x:Class="Wintangle.App.UI.Tray.TrayMenuWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="wintangle menu"
+        Title="Wintangle"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -129,7 +129,7 @@
                               StrokeEndLineCap="Round"
                               Data="M4 4h16M4 4v16M12 4v16M12 8h8M20 8v12M4 14h8M12 18h8" />
                     </Border>
-                    <TextBlock Text="wintangle"
+                    <TextBlock Text="Wintangle"
                                FontSize="12.5"
                                FontWeight="SemiBold"
                                VerticalAlignment="Center"

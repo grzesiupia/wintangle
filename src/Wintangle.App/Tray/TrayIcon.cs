@@ -69,7 +69,7 @@ internal sealed class TrayIcon : IDisposable
                 uFlags = TrayApi.NIF_MESSAGE | TrayApi.NIF_ICON | TrayApi.NIF_TIP,
                 uCallbackMessage = _callbackMessage,
                 hIcon = _hIcon,
-                szTip = "wintangle",
+                szTip = "Wintangle",
             };
 
             _added = TrayApi.Shell_NotifyIconW(TrayApi.NIM_ADD, ref _nid);

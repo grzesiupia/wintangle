@@ -85,9 +85,10 @@ public partial class SettingsTab : UserControl
     /// </summary>
     public void SyncThemeRadios(string theme)
     {
-        var isDark = string.Equals(ConfigStore.NormalizeTheme(theme), ConfigModel.ThemeDark, StringComparison.Ordinal);
-        DarkThemeCard.IsSelected = isDark;
-        LightThemeCard.IsSelected = !isDark;
+        var normalized = ConfigStore.NormalizeTheme(theme);
+        SystemThemeCard.IsSelected = string.Equals(normalized, ConfigModel.ThemeSystem, StringComparison.Ordinal);
+        DarkThemeCard.IsSelected = string.Equals(normalized, ConfigModel.ThemeDark, StringComparison.Ordinal);
+        LightThemeCard.IsSelected = string.Equals(normalized, ConfigModel.ThemeLight, StringComparison.Ordinal);
     }
 
     /// <summary>Detaches the theme subscription and cancels pending update operations (window teardown).</summary>
@@ -561,7 +562,7 @@ public partial class SettingsTab : UserControl
                 InstallUpdateButton.Visibility = Visibility.Collapsed;
                 ReleaseNotesButton.Visibility = _availableRelease != null ? Visibility.Visible : Visibility.Collapsed;
                 UpdateProgressBar.Visibility = Visibility.Collapsed;
-                UpdateStatusText.Text = message ?? "Check GitHub for the latest wintangle releases and improvements.";
+                UpdateStatusText.Text = message ?? "Check GitHub for the latest Wintangle releases and improvements.";
                 break;
 
             case UpdateState.Checking:
@@ -579,7 +580,7 @@ public partial class SettingsTab : UserControl
                 InstallUpdateButton.Visibility = Visibility.Collapsed;
                 ReleaseNotesButton.Visibility = Visibility.Collapsed;
                 UpdateProgressBar.Visibility = Visibility.Collapsed;
-                UpdateStatusText.Text = message ?? $"wintangle {UpdateService.CurrentVersion.ToDisplayString()} is the latest version.";
+                UpdateStatusText.Text = message ?? $"Wintangle {UpdateService.CurrentVersion.ToDisplayString()} is the latest version.";
                 break;
 
             case UpdateState.UpdateAvailable:
@@ -610,7 +611,7 @@ public partial class SettingsTab : UserControl
                 ReleaseNotesButton.Visibility = Visibility.Collapsed;
                 UpdateProgressBar.Visibility = Visibility.Visible;
                 UpdateProgressBar.Value = 100;
-                UpdateStatusText.Text = "Launching installer and restarting wintangle…";
+                UpdateStatusText.Text = "Launching installer and restarting Wintangle…";
                 break;
 
             case UpdateState.Error:
@@ -651,7 +652,7 @@ public partial class SettingsTab : UserControl
             else
             {
                 _availableRelease = null;
-                SetUpdateState(UpdateState.UpToDate, $"wintangle {UpdateService.CurrentVersion.ToDisplayString()} is up to date.");
+                SetUpdateState(UpdateState.UpToDate, $"Wintangle {UpdateService.CurrentVersion.ToDisplayString()} is up to date.");
             }
         }
         catch (OperationCanceledException)

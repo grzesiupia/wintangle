@@ -41,6 +41,8 @@ public class ThemeCard : Button
 
     public ThemeCard()
     {
+        SetResourceReference(StyleProperty, "ThemeCard");
+
         _dot = new Border
         {
             Width = 26,
@@ -101,9 +103,23 @@ public class ThemeCard : Button
     /// </summary>
     private void UpdateThemeVisual()
     {
-        var isDark = string.Equals(ConfigStore.NormalizeTheme(Theme), ConfigModel.ThemeDark, StringComparison.Ordinal);
-        _dot.SetResourceReference(Border.BackgroundProperty, isDark ? "Brush.ThemeDotDark" : "Brush.ThemeDotLight");
-        _titleText.Text = isDark ? ConfigModel.ThemeDark : ConfigModel.ThemeLight;
+        var normalized = ConfigStore.NormalizeTheme(Theme);
+        if (string.Equals(normalized, ConfigModel.ThemeSystem, StringComparison.Ordinal))
+        {
+            _dot.SetResourceReference(Border.BackgroundProperty, "Brush.ThemeDotSystem");
+            _titleText.Text = ConfigModel.ThemeSystem;
+        }
+        else if (string.Equals(normalized, ConfigModel.ThemeDark, StringComparison.Ordinal))
+        {
+            _dot.SetResourceReference(Border.BackgroundProperty, "Brush.ThemeDotDark");
+            _titleText.Text = ConfigModel.ThemeDark;
+        }
+        else
+        {
+            _dot.SetResourceReference(Border.BackgroundProperty, "Brush.ThemeDotLight");
+            _titleText.Text = ConfigModel.ThemeLight;
+        }
+
         _noteText.Text = Note;
     }
 

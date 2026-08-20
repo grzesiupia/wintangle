@@ -43,12 +43,12 @@ public static class Program
     public static void Main()
     {
         Log.Init();
-        Log.Info("wintangle starting");
+        Log.Info("Wintangle starting");
 
         if (!OperatingSystem.IsWindows())
         {
-            Console.WriteLine("wintangle requires Windows 10/11 — exiting.");
-            Log.Warn("wintangle requires Windows 10/11 — exiting");
+            Console.WriteLine("Wintangle requires Windows 10/11 — exiting.");
+            Log.Warn("Wintangle requires Windows 10/11 — exiting");
             Log.Shutdown();
             return;
         }
@@ -173,6 +173,24 @@ public static class Program
             return IntPtr.Zero;
         }
 
+        if ((uint)msg is NativeMethods.WM_SETTINGCHANGE or NativeMethods.WM_THEMECHANGED)
+        {
+            if (string.Equals(s_config?.Theme, ConfigModel.ThemeSystem, StringComparison.OrdinalIgnoreCase))
+            {
+                if (Application.Current is App app)
+                {
+                    if (app.Dispatcher.CheckAccess())
+                    {
+                        app.ApplyTheme(ConfigModel.ThemeSystem);
+                    }
+                    else
+                    {
+                        app.Dispatcher.BeginInvoke(() => app.ApplyTheme(ConfigModel.ThemeSystem));
+                    }
+                }
+            }
+        }
+
         if (s_tray is { } tray && tray.IsCallbackMessage((uint)msg, wParam))
         {
             var mouseMsg = (uint)lParam.ToInt64();
@@ -212,7 +230,7 @@ public static class Program
         {
             Log.Error("Settings failed to open", ex);
 #if !DEBUG
-            s_tray?.ShowBalloon("wintangle", $"Settings failed to open: {ex.Message}");
+            s_tray?.ShowBalloon("Wintangle", $"Settings failed to open: {ex.Message}");
 #endif
         }
     }
@@ -240,7 +258,7 @@ public static class Program
             var result = await updateService.CheckAsync().ConfigureAwait(false);
             if (result.Success && result.IsUpdateAvailable && result.Release != null)
             {
-                ToastWindow.ShowToast("wintangle update", $"v{result.Release.Version} is available. Open Settings to install.", false);
+                ToastWindow.ShowToast("Wintangle update", $"v{result.Release.Version} is available. Open Settings to install.", false);
             }
         }
         catch (Exception ex)
@@ -257,7 +275,7 @@ public static class Program
         }
 
         s_shutdownDone = true;
-        Log.Info("wintangle exiting");
+        Log.Info("Wintangle exiting");
 
         if (s_hook != null)
         {

@@ -643,6 +643,8 @@
         </Setter>
     </Style>
 
+    <Style TargetType="{x:Type controls:ThemeCard}" BasedOn="{StaticResource ThemeCard}" />
+
     <!-- ── Switch (Startup toggle) ──────────────────────────────────────── -->
     <!-- 42×24 pill; off = Border track, on = Accent track (style trigger, so
          the brush stays theme-aware). The 18px Surface knob slides 18px right
@@ -687,6 +689,8 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+    <Style TargetType="{x:Type controls:Switch}" BasedOn="{StaticResource Switch}" />
 
     <!-- ── Danger outline button (Restore defaults…) ────────────────────── -->
     <!-- 13px SemiBold Danger text on a DangerBorder32 hairline; hover fills

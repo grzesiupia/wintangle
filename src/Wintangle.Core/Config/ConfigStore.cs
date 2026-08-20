@@ -167,7 +167,7 @@ public static class ConfigStore
     }
 
     /// <summary>
-    /// Normalizes a theme key: case-insensitive "Dark"/"Light"; anything else
+    /// Normalizes a theme key: case-insensitive "Dark"/"Light"/"System"; anything else
     /// (null, whitespace, unknown values) maps to the default dark theme.
     /// </summary>
     public static string NormalizeTheme(string? theme)
@@ -177,7 +177,13 @@ public static class ConfigStore
             return ConfigModel.ThemeDark;
         }
 
-        return string.Equals(theme.Trim(), ConfigModel.ThemeLight, StringComparison.OrdinalIgnoreCase)
+        var trimmed = theme.Trim();
+        if (string.Equals(trimmed, ConfigModel.ThemeSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            return ConfigModel.ThemeSystem;
+        }
+
+        return string.Equals(trimmed, ConfigModel.ThemeLight, StringComparison.OrdinalIgnoreCase)
             ? ConfigModel.ThemeLight
             : ConfigModel.ThemeDark;
     }

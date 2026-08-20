@@ -91,7 +91,7 @@ public partial class ToastWindow : Window
         _dismissTimer.Stop();
         _isClosing = false;
 
-        TitleText.Text = string.IsNullOrEmpty(title) ? "wintangle" : title;
+        TitleText.Text = string.IsNullOrEmpty(title) ? "Wintangle" : title;
         MessageText.Text = message ?? string.Empty;
 
         StatusDot.SetResourceReference(

@@ -1,16 +1,16 @@
-; wintangle — Inno Setup installer script
+; Wintangle — Inno Setup installer script
 ;
 ; Build from the repository root after publishing:
 ;   dotnet publish src/Wintangle.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o artifacts/publish
-;   iscc build\setup.iss /DAppVersion=1.0.6
+;   iscc build\setup.iss /DAppVersion=1.0.7
 ;
 ; The publish output directory can be overridden:
-;   iscc build\setup.iss /DAppVersion=1.0.6 /DSourceDir=C:\path\to\publish
+;   iscc build\setup.iss /DAppVersion=1.0.7 /DSourceDir=C:\path\to\publish
 ;
 ; Relative paths are resolved against this script's directory (build\).
 
 #ifndef AppVersion
-  #define AppVersion "1.0.6"
+  #define AppVersion "1.0.7"
 #endif
 
 #ifndef SourceDir
@@ -20,34 +20,32 @@
 
 [Setup]
 AppId={{3F8E4A72-9C1D-4B6E-A5F0-2D8C7E6B4A91}}
-AppName=wintangle
+AppName=Wintangle
 AppVersion={#AppVersion}
-AppVerName=wintangle {#AppVersion}
-AppPublisher=wintangle contributors
+AppVerName=Wintangle {#AppVersion}
+AppPublisher=Wintangle contributors
 AppPublisherURL=https://github.com/wintangle/wintangle
 AppSupportURL=https://github.com/wintangle/wintangle/issues
 AppUpdatesURL=https://github.com/wintangle/wintangle/releases
-AppCopyright=Copyright (C) 2024-2026 wintangle contributors
+AppCopyright=Copyright (C) 2024-2026 Wintangle contributors
 LicenseFile=..\LICENSE
-DefaultDirName={userpf}\wintangle
-DefaultGroupName=wintangle
+DefaultDirName={autopf}\Wintangle
+DefaultGroupName=Wintangle
 DisableProgramGroupPage=yes
-; Per-user install: no UAC prompt, and the HKCU Run key autostart stays
-; consistent with a user-level installation.
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 OutputDir=Output
 OutputBaseFilename=wintangle-setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-; Release icon: the same Assets/wintangle.ico that is embedded in the exe.
 SetupIconFile=..\src\Wintangle.App\Assets\wintangle.ico
-; The app is published as win-x64 self-contained; restrict to 64-bit (incl. ARM64 emulation).
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-UninstallDisplayName=wintangle
+UninstallDisplayName=Wintangle
 UninstallDisplayIcon={app}\Wintangle.App.exe
+AppMutex=Local\Wintangle.SingleInstance
 CloseApplications=yes
+RestartApplications=no
 
 [Files]
 ; License files
@@ -63,7 +61,7 @@ Source: "..\assets\fonts\*.ttf"; DestDir: "{autofonts}"; FontInstall: "JetBrains
 ; No IconFilename set: Inno Setup auto-picks the first icon embedded in the
 ; .exe (Assets/wintangle.ico via ApplicationIcon in the csproj — verified
 ; assumption; keep the Icons section in sync if that changes).
-Name: "{autoprograms}\wintangle"; Filename: "{app}\Wintangle.App.exe"
+Name: "{autoprograms}\Wintangle"; Filename: "{app}\Wintangle.App.exe"
 
 [Registry]
 ; Clean up the autostart Run key entry if the user enabled it during application usage.
@@ -73,4 +71,15 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: 
 Type: filesandordirs; Name: "{app}"
 
 [Run]
-Filename: "{app}\Wintangle.App.exe"; Description: "Launch wintangle"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\Wintangle.App.exe"; Description: "Launch Wintangle"; Flags: nowait postinstall skipifsilent
+
+[Code]
+function InitializeUninstall(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := True;
+  // Terminate running Wintangle process before uninstalling files
+  Exec('taskkill.exe', '/F /IM Wintangle.App.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(500);
+end;

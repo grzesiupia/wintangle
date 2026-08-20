@@ -24,6 +24,7 @@ internal static class NativeMethods
     // ---- Windows messages (WM_*) ----
     public const uint WM_NULL = 0x0000;
     public const uint WM_QUIT = 0x0012;
+    public const uint WM_SETTINGCHANGE = 0x001A;
     public const uint WM_KEYDOWN = 0x0100;
     public const uint WM_KEYUP = 0x0101;
     public const uint WM_SYSKEYDOWN = 0x0104;
@@ -32,6 +33,7 @@ internal static class NativeMethods
     public const uint WM_GETMINMAXINFO = 0x0024;
     public const uint WM_CONTEXTMENU = 0x007B;
     public const uint WM_RBUTTONUP = 0x0205;
+    public const uint WM_THEMECHANGED = 0x031A;
 
     // ---- Application-defined messages (WM_APP + n) ----
     public const uint WM_APP = 0x8000;

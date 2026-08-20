@@ -275,6 +275,17 @@ public class ConfigStoreTests : IDisposable
     }
 
     [Fact]
+    public void Theme_RoundTrip_System()
+    {
+        var path = ConfigPath();
+        ConfigStore.Save(path, new ConfigModel { Theme = ConfigModel.ThemeSystem });
+
+        var loaded = ConfigStore.Load(path);
+
+        Assert.Equal(ConfigModel.ThemeSystem, loaded.Theme);
+    }
+
+    [Fact]
     public void Theme_Unknown_DefaultsDark()
     {
         var path = ConfigPath();
@@ -296,9 +307,21 @@ public class ConfigStoreTests : IDisposable
         File.WriteAllText(upperPath, """{ "theme": "LIGHT" }""");
         Assert.Equal(ConfigModel.ThemeLight, ConfigStore.Load(upperPath).Theme);
 
+        var systemPath = ConfigPath();
+        File.WriteAllText(systemPath, """{ "theme": "system" }""");
+        Assert.Equal(ConfigModel.ThemeSystem, ConfigStore.Load(systemPath).Theme);
+
+        var systemUpperPath = ConfigPath();
+        File.WriteAllText(systemUpperPath, """{ "theme": "SYSTEM" }""");
+        Assert.Equal(ConfigModel.ThemeSystem, ConfigStore.Load(systemUpperPath).Theme);
+
         var paddedPath = ConfigPath();
         File.WriteAllText(paddedPath, """{ "theme": "  dark  " }""");
         Assert.Equal(ConfigModel.ThemeDark, ConfigStore.Load(paddedPath).Theme);
+
+        var paddedSystemPath = ConfigPath();
+        File.WriteAllText(paddedSystemPath, """{ "theme": "  system  " }""");
+        Assert.Equal(ConfigModel.ThemeSystem, ConfigStore.Load(paddedSystemPath).Theme);
     }
 
     [Fact]
@@ -311,6 +334,27 @@ public class ConfigStoreTests : IDisposable
         var numberPath = ConfigPath();
         File.WriteAllText(numberPath, """{ "theme": 42 }""");
         Assert.Equal(ConfigModel.ThemeDark, ConfigStore.Load(numberPath).Theme);
+    }
+
+    [Theory]
+    [InlineData(null, ConfigModel.ThemeDark)]
+    [InlineData("", ConfigModel.ThemeDark)]
+    [InlineData("   ", ConfigModel.ThemeDark)]
+    [InlineData("dark", ConfigModel.ThemeDark)]
+    [InlineData("DARK", ConfigModel.ThemeDark)]
+    [InlineData("Dark", ConfigModel.ThemeDark)]
+    [InlineData("light", ConfigModel.ThemeLight)]
+    [InlineData("LIGHT", ConfigModel.ThemeLight)]
+    [InlineData("Light", ConfigModel.ThemeLight)]
+    [InlineData("system", ConfigModel.ThemeSystem)]
+    [InlineData("SYSTEM", ConfigModel.ThemeSystem)]
+    [InlineData("System", ConfigModel.ThemeSystem)]
+    [InlineData("  system  ", ConfigModel.ThemeSystem)]
+    [InlineData("unknown", ConfigModel.ThemeDark)]
+    [InlineData("random", ConfigModel.ThemeDark)]
+    public void NormalizeTheme_ReturnsExpected(string? input, string expected)
+    {
+        Assert.Equal(expected, ConfigStore.NormalizeTheme(input));
     }
 
     [Fact]

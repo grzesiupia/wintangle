@@ -23,6 +23,7 @@
     <SolidColorBrush x:Key="Brush.CloseHoverText" Color="#FFF6F7" />
     <SolidColorBrush x:Key="Brush.ThemeDotDark" Color="#12171B" />
     <SolidColorBrush x:Key="Brush.ThemeDotLight" Color="#F3F5F8" />
+    <SolidColorBrush x:Key="Brush.ThemeDotSystem" Color="#9EAAB7" />
     <SolidColorBrush x:Key="Brush.DeskTaskbar" Color="#FBFCFD" />
     <SolidColorBrush x:Key="Brush.GoHover" Color="#A42523" />
     <SolidColorBrush x:Key="Brush.AccentBorder45" Color="#731779E1" />

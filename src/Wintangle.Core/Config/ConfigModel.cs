@@ -30,6 +30,9 @@ public sealed record ConfigModel
     /// <summary>Light theme key.</summary>
     public const string ThemeLight = "Light";
 
+    /// <summary>System theme key (follows Windows app theme).</summary>
+    public const string ThemeSystem = "System";
+
     /// <summary>Default theme — dark.</summary>
     public const string DefaultTheme = ThemeDark;
 

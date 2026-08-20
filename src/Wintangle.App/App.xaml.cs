@@ -3,6 +3,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using Wintangle.App.Services;
 using Wintangle.Core.Config;
 
@@ -13,8 +14,11 @@ namespace Wintangle.App
     /// </summary>
     public partial class App : Application
     {
-        /// <summary>Theme currently applied to the app resources ("Dark"/"Light").</summary>
+        /// <summary>Theme currently configured ("Dark"/"Light"/"System").</summary>
         public string? CurrentTheme { get; private set; }
+
+        /// <summary>Effective theme dictionary loaded ("Dark"/"Light").</summary>
+        private string? _effectiveTheme;
 
         public App()
         {
@@ -64,6 +68,33 @@ namespace Wintangle.App
         }
 
         /// <summary>
+        /// Reads the Windows theme setting from HKCU registry (1 = Light, 0 = Dark).
+        /// Defaults to Dark (false) if non-Windows or unreadable.
+        /// </summary>
+        public static bool IsSystemLightTheme()
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                return false;
+            }
+
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+                if (key?.GetValue("AppsUseLightTheme") is int val)
+                {
+                    return val == 1;
+                }
+            }
+            catch
+            {
+                // Fallback to dark if registry cannot be read
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Ensures critical font family resources exist even if theme loading fails.
         /// </summary>
         private void EnsureFallbackResources()
@@ -84,20 +115,26 @@ namespace Wintangle.App
 
         /// <summary>
         /// Swaps the merged theme dictionary to <paramref name="theme"/>. Normalizes unknown values to
-        /// the default and no-ops when the theme is already applied. Never
-        /// throws — a failed swap leaves the previous theme in place and ensures fallback resources.
+        /// the default and no-ops when the theme is already applied. When configured to "System",
+        /// resolves to the effective system theme (Light or Dark). Never throws — a failed swap
+        /// leaves the previous theme in place and ensures fallback resources.
         /// </summary>
         public void ApplyTheme(string theme)
         {
             var normalized = ConfigStore.NormalizeTheme(theme);
-            if (string.Equals(CurrentTheme, normalized, StringComparison.Ordinal))
+            var effectiveTheme = string.Equals(normalized, ConfigModel.ThemeSystem, StringComparison.Ordinal)
+                ? (IsSystemLightTheme() ? ConfigModel.ThemeLight : ConfigModel.ThemeDark)
+                : normalized;
+
+            if (string.Equals(CurrentTheme, normalized, StringComparison.Ordinal) &&
+                string.Equals(_effectiveTheme, effectiveTheme, StringComparison.Ordinal))
             {
                 return;
             }
 
             try
             {
-                var themeUri = new Uri($"pack://application:,,,/Wintangle.App;component/Themes/{normalized}.xaml", UriKind.Absolute);
+                var themeUri = new Uri($"pack://application:,,,/Wintangle.App;component/Themes/{effectiveTheme}.xaml", UriKind.Absolute);
                 var dictionary = new ResourceDictionary
                 {
                     Source = themeUri,
@@ -145,10 +182,11 @@ namespace Wintangle.App
                 }
 
                 CurrentTheme = normalized;
+                _effectiveTheme = effectiveTheme;
             }
             catch (Exception ex)
             {
-                Log.Warn($"theme apply failed for '{normalized}': {ex.Message}");
+                Log.Warn($"theme apply failed for '{normalized}' (effective: '{effectiveTheme}'): {ex.Message}");
                 EnsureFallbackResources();
             }
         }

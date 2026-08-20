@@ -1,7 +1,7 @@
 <Window x:Class="Wintangle.App.UI.Tray.ToastWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="wintangle notification"
+        Title="Wintangle notification"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -46,7 +46,7 @@
                                FontWeight="SemiBold"
                                VerticalAlignment="Center"
                                Foreground="{DynamicResource Brush.Fg}"
-                               Text="wintangle" />
+                               Text="Wintangle" />
                 </StackPanel>
 
                 <!-- Message text -->
