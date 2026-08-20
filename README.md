@@ -97,6 +97,8 @@ Download `wintangle-setup.exe` from the [Releases](https://github.com/wintangle/
 - Requires Windows 11 x64.
 
 > The installer is unsigned for now. If SmartScreen complains, use **More info → Run anyway**.
+>
+> **Use at your own risk.** This is open-source software provided as-is, without warranty (see the [MIT license](LICENSE)).
 
 ---
 
