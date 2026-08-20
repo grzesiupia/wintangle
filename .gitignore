@@ -7,3 +7,7 @@ build/Output/
 data/
 
 __pycache__/
+
+# local-only design files
+wintangle-design/
+docs/functionality-for-designer.md
