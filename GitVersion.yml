@@ -2,7 +2,8 @@
 #
 # Versioning scheme: Mainline (v6: Mainline version strategy + ContinuousDeployment
 # on main, the documented replacement for the removed `mode: Mainline`)
-#   main       -> stable releases (1.0.8, 1.0.9, ...) — every commit bumps Patch
+#   main       -> version = latest release tag (1.0.7, 1.0.8, ...); ONLY a new tag
+#                  push bumps it — commits (chore/ci/feat/fix) never do
 #   develop    -> pre-release  1.0.8-alpha.1, 1.0.8-alpha.2, ...
 #   feature/*  -> pre-release  1.0.8-feature-<name>.1, ...
 #   fix/*      -> pre-release  1.0.8-fix-<name>.1, ...
@@ -10,16 +11,20 @@
 #                  release; branch is cut from the v1.0.7 tag / main)
 #   tags vX.Y.Z -> exact release version (drives .github/workflows/release.yml)
 #
-# Why Mainline: every commit on main must produce a unique stable version.
-# ContinuousDelivery would pin main at 1.0.7 until the next tag; Mainline is
-# the documented fit for GitHub-Flow + pre-release develop scheme.
+# Why Mainline + increment None on main: releases are tag-driven, so main only
+# moves when a v* tag is pushed. GitVersion 6 Mainline ignores commit-message
+# conventions (no-bump-message / +semver: skip are inert — verified with 6.8.2),
+# and label: on the mainline branch is ignored (main always emits stable
+# versions), so `increment: None` is the only way to keep chore/ci commits from
+# bumping. Beta-style pre-releases can still be made by tagging vX.Y.Z-beta.N.
 #
-# No `next-version` on purpose: tag v1.0.7 sits on main HEAD, so the current
-# commit derives 1.0.7 and the NEXT main commit becomes 1.0.8. Add
+# No `next-version` on purpose: tag v1.0.7 sits on main HEAD, so main stays at
+# 1.0.7 until a new v* tag is pushed (increment: None). Add
 # `next-version: 1.0.8` only if version tags are ever lost.
 #
 # v6 notes:
-# - `increment` is explicit (Patch) on every branch, NOT `Inherit`: with the
+# - `increment` is explicit on every branch, NOT `Inherit`: main uses None
+#   (tags-only — commits never bump), all other branches Patch. With the
 #   Mainline strategy, Inherit on a non-main branch double-increments (the
 #   stable tag at the branch base already consumed the Patch bump).
 # - `{BranchName}` needs the (?<BranchName>.+) named group in the regex; v6
@@ -43,7 +48,7 @@ branches:
     regex: ^main$
     mode: ContinuousDeployment
     label: ''
-    increment: Patch
+    increment: None
 
   develop:
     regex: ^develop$

@@ -1,0 +1,19 @@
+# Dependabot version + security updates for the .NET 8 solution.
+# Config is read from the default branch (main) only.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    groups:
+      # Minor+patch bumps land as ONE PR; majors stay separate PRs.
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
