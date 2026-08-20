@@ -322,7 +322,7 @@ public partial class SettingsTab : UserControl
 
     // ---- Ignored apps ----
 
-    private void RefreshIgnored()
+    public void RefreshIgnored()
     {
         IgnoredList.Children.Clear();
 
@@ -330,12 +330,73 @@ public partial class SettingsTab : UserControl
         if (names.Count == 0)
         {
             IgnoredList.Children.Add(CreateEmptyNote());
+        }
+        else
+        {
+            foreach (var name in names)
+            {
+                IgnoredList.Children.Add(CreateIgnoredRow(name));
+            }
+        }
+
+        RefreshRunningApps();
+    }
+
+    private void RefreshRunningApps()
+    {
+        RunningAppsPanel.Children.Clear();
+
+        var ignoredSet = new HashSet<string>(
+            _config.Current.IgnoredApps.Select(RuntimeState.NormalizeProcessName),
+            StringComparer.OrdinalIgnoreCase);
+
+        var runningWindows = ActiveWindows.Enumerate();
+        var candidateProcs = runningWindows
+            .Select(w => w.ProcessName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name.Trim())
+            .Where(name =>
+            {
+                var norm = RuntimeState.NormalizeProcessName(name);
+                return norm.Length > 0
+                    && !norm.Equals("wintangle", StringComparison.OrdinalIgnoreCase)
+                    && !ignoredSet.Contains(norm);
+            })
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (candidateProcs.Count == 0)
+        {
+            var emptyLabel = new TextBlock
+            {
+                Text = "No other running apps found.",
+                FontSize = 11.5,
+                Margin = new Thickness(0, 2, 0, 0),
+            };
+            emptyLabel.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Muted");
+            RunningAppsPanel.Children.Add(emptyLabel);
             return;
         }
 
-        foreach (var name in names)
+        foreach (var procName in candidateProcs)
         {
-            IgnoredList.Children.Add(CreateIgnoredRow(name));
+            var btn = new Button
+            {
+                Content = $"+ {procName}",
+                Margin = new Thickness(0, 0, 6, 6),
+                Padding = new Thickness(8, 4, 8, 4),
+                FontSize = 12,
+                ToolTip = $"Click to ignore {procName}",
+            };
+            btn.SetResourceReference(Button.StyleProperty, "GhostButton");
+            btn.SetResourceReference(Control.FontFamilyProperty, "Font.Mono");
+            btn.Click += (_, _) =>
+            {
+                _config.AddIgnored(procName);
+                RefreshIgnored();
+            };
+            RunningAppsPanel.Children.Add(btn);
         }
     }
 

@@ -9,7 +9,7 @@ namespace Wintangle.App.UI.Controls;
 /// One theme card in the Settings tab's Appearance group: a color dot
 /// (<c>ThemeDotDark</c> / <c>ThemeDotLight</c> per <see cref="Theme"/>), the
 /// theme name and a short note. Styled by "ThemeCard" (hover →
-/// FgHoverBorder; selected → Accent border + AccentSoft bg); the host wires
+/// FgHoverBorder; selected → Accent border + Bg fill); the host wires
 /// the Click handler and drives <see cref="IsSelected"/>.
 /// </summary>
 public class ThemeCard : Button
@@ -28,7 +28,7 @@ public class ThemeCard : Button
         typeof(ThemeCard),
         new PropertyMetadata(string.Empty, OnThemeVisualChanged));
 
-    /// <summary>Selected state — the currently applied theme; paints Accent/AccentSoft.</summary>
+    /// <summary>Selected state — the currently applied theme; paints Accent border.</summary>
     public static readonly DependencyProperty IsSelectedProperty = DependencyProperty.Register(
         nameof(IsSelected),
         typeof(bool),

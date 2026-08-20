@@ -482,7 +482,8 @@
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="FontFamily" Value="{DynamicResource Font.Mono}" />
         <Setter Property="FontSize" Value="13" />
-        <Setter Property="Padding" Value="8,7" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="Template">
             <Setter.Value>
@@ -491,13 +492,14 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="7">
-                        <Grid>
-                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                            CornerRadius="7"
+                            Padding="{TemplateBinding Padding}">
+                        <Grid VerticalAlignment="Center">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          VerticalAlignment="Center" />
                             <TextBlock x:Name="Placeholder"
                                        Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
                                        Foreground="{DynamicResource Brush.Muted}"
-                                       Margin="{TemplateBinding Padding}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
                                        Visibility="Collapsed" />
@@ -595,10 +597,10 @@
 
     <!-- ── Theme card (Appearance group) ────────────────────────────────── -->
     <!-- Dot + name + note; hover → FgHoverBorder; selected (current theme) →
-         Accent border + AccentSoft bg + subtle AccentGlow. -->
+         Accent border + Bg fill + subtle AccentGlow. -->
     <Style x:Key="ThemeCard" TargetType="{x:Type controls:ThemeCard}">
         <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Background" Value="{DynamicResource Brush.Bg}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -620,13 +622,14 @@
                             <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.FgHoverBorder}" />
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Bg}" />
                             <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
-                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+                            <Setter TargetName="Root" Property="BorderThickness" Value="1" />
                             <Setter TargetName="Root" Property="Effect">
                                 <Setter.Value>
-                                    <DropShadowEffect BlurRadius="8"
+                                    <DropShadowEffect BlurRadius="6"
                                                       ShadowDepth="0"
-                                                      Opacity="0.30"
+                                                      Opacity="0.35"
                                                       Color="{DynamicResource Color.AccentGlow}" />
                                 </Setter.Value>
                             </Setter>

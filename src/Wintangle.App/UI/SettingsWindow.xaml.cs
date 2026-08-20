@@ -313,6 +313,10 @@ public partial class SettingsWindow : Window
         {
             _shortcutsPanel?.Rebuild();
         }
+        else if (settings)
+        {
+            _settingsPanel?.RefreshIgnored();
+        }
 
         _activeTab = name;
     }

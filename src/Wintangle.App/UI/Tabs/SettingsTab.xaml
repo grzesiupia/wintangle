@@ -212,6 +212,10 @@
                             Click="IgnoreAddButton_Click" />
                 </Grid>
                 <StackPanel x:Name="IgnoredList" />
+                <TextBlock Style="{DynamicResource SGroupNote}"
+                           Text="RUNNING APPS (CLICK TO IGNORE)"
+                           Margin="0,16,0,8" />
+                <WrapPanel x:Name="RunningAppsPanel" Margin="0,4,0,0" />
             </StackPanel>
         </Border>
 
