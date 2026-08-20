@@ -48,6 +48,7 @@ namespace Wintangle.App
             if (TryMarkUnhandledLogged())
             {
                 Log.Error("Unhandled", e.Exception);
+                Log.Flush();
             }
             // Deliberately NOT setting e.Handled — the default behavior (crash)
             // stays as-is; the log entry is the only change.
@@ -58,6 +59,7 @@ namespace Wintangle.App
             if (TryMarkUnhandledLogged())
             {
                 Log.Error("Unhandled", e.ExceptionObject as Exception);
+                Log.Flush();
             }
         }
 

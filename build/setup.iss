@@ -28,6 +28,7 @@ AppPublisherURL=https://github.com/wintangle/wintangle
 AppSupportURL=https://github.com/wintangle/wintangle/issues
 AppUpdatesURL=https://github.com/wintangle/wintangle/releases
 AppCopyright=Copyright (C) 2024-2026 wintangle contributors
+LicenseFile=..\LICENSE
 DefaultDirName={userpf}\wintangle
 DefaultGroupName=wintangle
 DisableProgramGroupPage=yes
@@ -49,6 +50,9 @@ UninstallDisplayIcon={app}\Wintangle.App.exe
 CloseApplications=yes
 
 [Files]
+; License files
+Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\assets\fonts\OFL.txt"; DestDir: "{app}\licenses"; DestName: "JetBrainsMono-OFL.txt"; Flags: ignoreversion
 ; Everything from the publish output: the single-file Wintangle.App.exe plus
 ; the WPF native runtime DLLs (D3DCompiler_47_cor3.dll, PresentationNative_cor3.dll, ...).
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

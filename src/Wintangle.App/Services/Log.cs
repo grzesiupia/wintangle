@@ -1,93 +1,124 @@
-using System.IO;
+using Wintangle.App.Services.Logging;
+using Wintangle.Core.Logging;
 
 namespace Wintangle.App.Services;
 
 /// <summary>
-/// Minimal plain-text file logger. Writes to <c>wintangle.log</c> next to the
-/// app executable (<see cref="AppContext.BaseDirectory"/>). Logging is best
-/// effort only: <see cref="Init"/> and every write are wrapped so the logger
-/// never throws and never takes the app down.
+/// Central static logging facade for wintangle. Dispatches log entries
+/// asynchronously via <see cref="LogDispatcher"/> to daily rolling file,
+/// debug output, and an in-memory ring buffer.
 /// </summary>
-/// <remarks>
-/// All levels are kept in Release builds (the user wants to track issues), so
-/// callers can rely on the file being written in a shipped build. Set
-/// <see cref="Enabled"/> to false to disable logging at runtime if it ever
-/// needs to be switched off without a rebuild.
-/// </remarks>
 internal static class Log
 {
     private static readonly object s_lock = new();
-    private static string? s_path;
+    private static LogDispatcher? s_dispatcher;
+    private static LogRingBuffer? s_ringBuffer;
 
     /// <summary>Master switch — false silences every write. Default true.</summary>
     public static bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// Resolves the log file path (next to the executable) once. No-op when
-    /// already initialized; never throws — a failed resolve leaves logging
-    /// silently disabled.
+    /// Initializes logging infrastructure (ring buffer, file sink, debug sink, dispatcher).
+    /// Safe to call multiple times (idempotent); never throws.
     /// </summary>
     public static void Init()
     {
         lock (s_lock)
         {
-            if (s_path != null)
+            if (s_dispatcher != null)
             {
                 return;
             }
 
             try
             {
-                s_path = Path.Combine(AppContext.BaseDirectory, "wintangle.log");
+                s_ringBuffer = new LogRingBuffer(200);
+                var sinks = new ILogSink[]
+                {
+                    new RingBufferSink(s_ringBuffer),
+                    new RollingFileSink(),
+                    new DebugSink(),
+                };
+
+                s_dispatcher = new LogDispatcher(sinks);
             }
             catch
             {
-                s_path = null; // cannot determine a path — disable logging
+                s_dispatcher = null;
+                s_ringBuffer = null;
             }
         }
     }
 
     /// <summary>Writes an INFO entry.</summary>
-    public static void Info(string msg) => Write("INFO", msg, null);
+    public static void Info(string msg) => Write(LogLevel.Info, msg, null);
 
     /// <summary>Writes a WARN entry.</summary>
-    public static void Warn(string msg) => Write("WARN", msg, null);
+    public static void Warn(string msg) => Write(LogLevel.Warn, msg, null);
 
-    /// <summary>Writes an ERROR entry, optionally with the exception (Message + StackTrace).</summary>
-    public static void Error(string msg, Exception? ex = null) => Write("ERROR", msg, ex);
+    /// <summary>Writes an ERROR entry, optionally with the exception.</summary>
+    public static void Error(string msg, Exception? ex = null) => Write(LogLevel.Error, msg, ex);
 
-    private static void Write(string level, string msg, Exception? ex)
+    /// <summary>Returns the most recent log entries from the in-memory ring buffer.</summary>
+    public static IReadOnlyList<string> GetRecentEntries() =>
+        s_ringBuffer?.Snapshot() ?? Array.Empty<string>();
+
+    /// <summary>Flushes pending entries synchronously.</summary>
+    public static void Flush()
+    {
+        try
+        {
+            s_dispatcher?.Flush();
+        }
+        catch
+        {
+        }
+    }
+
+    /// <summary>Flushes and shuts down the logging dispatcher and sinks.</summary>
+    public static void Shutdown()
+    {
+        lock (s_lock)
+        {
+            if (s_dispatcher == null)
+            {
+                return;
+            }
+
+            try
+            {
+                s_dispatcher.Shutdown(TimeSpan.FromSeconds(2));
+            }
+            catch
+            {
+            }
+            finally
+            {
+                s_dispatcher = null;
+            }
+        }
+    }
+
+    private static void Write(LogLevel level, string msg, Exception? ex)
     {
         if (!Enabled)
         {
             return;
         }
 
-        lock (s_lock)
+        try
         {
-            if (s_path == null)
+            if (s_dispatcher == null)
             {
-                return;
+                Init();
             }
 
-            try
-            {
-                var entry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}  [{level}]  {msg}";
-                if (ex != null)
-                {
-                    entry += Environment.NewLine + ex.Message;
-                    if (!string.IsNullOrEmpty(ex.StackTrace))
-                    {
-                        entry += Environment.NewLine + ex.StackTrace;
-                    }
-                }
-
-                File.AppendAllText(s_path, entry + Environment.NewLine);
-            }
-            catch
-            {
-                // Logging must never throw — swallow everything.
-            }
+            var entry = LogEntry.Create(level, msg, ex);
+            s_dispatcher?.Enqueue(in entry);
+        }
+        catch
+        {
+            // Logging must never throw — swallow everything.
         }
     }
 }

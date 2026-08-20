@@ -48,6 +48,7 @@ public static class Program
         {
             Console.WriteLine("wintangle requires Windows 10/11 — exiting.");
             Log.Warn("wintangle requires Windows 10/11 — exiting");
+            Log.Shutdown();
             return;
         }
 
@@ -56,6 +57,7 @@ public static class Program
         if (!SingleInstance.TryAcquire())
         {
             Log.Info("another instance is running — signaled it to show settings; exiting");
+            Log.Shutdown();
             return;
         }
 
@@ -139,7 +141,6 @@ public static class Program
         // Application.Shutdown path (tray menu → Quit) unwinds through here
         // after the dispatcher loop exits.
         Shutdown();
-        Log.Info("wintangle exiting");
     }
 
     /// <summary>
@@ -233,6 +234,7 @@ public static class Program
         }
 
         s_shutdownDone = true;
+        Log.Info("wintangle exiting");
 
         if (s_hook != null)
         {
@@ -255,5 +257,6 @@ public static class Program
 
         s_config?.Dispose();
         SingleInstance.Release();
+        Log.Shutdown();
     }
 }
