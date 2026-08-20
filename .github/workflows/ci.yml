@@ -47,7 +47,7 @@ jobs:
         shell: pwsh
         run: |
           dotnet tool restore
-          $gv = dotnet dotnet-gitversion /output json | ConvertFrom-Json
+          $gv = (dotnet dotnet-gitversion /output json | Out-String) | ConvertFrom-Json
           Write-Host "Version: $($gv.SemVer)"
           "GV_SEMVER=$($gv.SemVer)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
@@ -87,7 +87,7 @@ jobs:
         shell: pwsh
         run: |
           dotnet tool restore
-          $gv = dotnet dotnet-gitversion /output json | ConvertFrom-Json
+          $gv = (dotnet dotnet-gitversion /output json | Out-String) | ConvertFrom-Json
           "GV_SEMVER=$($gv.SemVer)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Download build artifact
