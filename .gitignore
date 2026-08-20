@@ -1,13 +1,53 @@
+# ── .NET / MSBuild ──────────────────────────────────────────────
 bin/
 obj/
-.vs/
 artifacts/
-build/Output/
 *.user
+*.suo
+*.userprefs
+*.tmp
+*.log
+
+# Visual Studio
+.vs/
+.vscode/
+.idea/
+*.csproj.user
+
+# Test results
+TestResults/
+*.trx
+
+# NuGet
+packages/
+*.nupkg
+project.lock.json
+
+# ── WPF / Windows app specifics ─────────────────────────────────
+# Runtime log written next to Wintangle.App.exe
+wintangle.log
+wintangle-*.log
+
+# Inno Setup output
+build/Output/
+
+# Published/self-contained output
+publish/
+dist/
+*.publish
+
+# ── Python (icon generator) ────────────────────────────────────
+__pycache__/
+*.pyc
+
+# ── agentmemory local storage ──────────────────────────────────
 data/
 
-__pycache__/
-
-# local-only design files
+# ── local-only design files (not meant for the repo) ───────────
 wintangle-design/
 docs/functionality-for-designer.md
+
+# ── OS junk ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
