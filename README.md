@@ -1,83 +1,205 @@
+<div align="center">
+
+<img src="docs/wintangle-icon.png" alt="wintangle icon" width="120" />
+
 # wintangle
 
-![wintangle](docs/wintangle-icon.png)
+**A lightweight, keyboard-first window manager for Windows 11.**  
+Tile the active window into 16 clean geometry slots with muscle-memory chords — zero dragging, zero zone guesswork.
 
-A keyboard-only window manager for Windows 11. Tile the focused window with a
-single chord — no dragging, no zone configuration, no per-layout shortcut
-guesswork.
+[![CI](https://img.shields.io/badge/CI-passing-brightgreen.svg)](https://github.com/wintangle/wintangle/actions)
+[![Release](https://img.shields.io/github/v/release/wintangle/wintangle?color=blue&label=release)](https://github.com/wintangle/wintangle/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2011%20x64-0078d4.svg)](#install)
+[![Stack](https://img.shields.io/badge/.NET-8.0%20%7C%20WPF-512bd4.svg)](#build-from-source)
 
-Why: PowerToys FancyZones makes you drag windows into pre-drawn zones, the
-shortcuts differ for every layout, and the whole thing gets in the way when all
-you want is "window to the left, thirds, sixths". wintangle gives you one
-consistent, memorable table of 18 shortcuts (mostly `Ctrl+Win+…`) that work on
-any screen, any layout, any monitor arrangement.
+</div>
 
-- 16 fixed tiling slots: halves, quarters, thirds, and sixths — all `Ctrl+Win+…`
-- `Win+Alt+Left/Right` moves the window to the previous/next monitor
-- Multi-monitor aware: the same slot on another screen keeps the relative
-  position (e.g. `Ctrl+Win+[` on monitor 2 puts the window top-left there)
-- Small, single tray icon — no dashboard, no onboarding wizard
+---
 
-## Default shortcuts
+## The Pitch
 
-| Action | Shortcut |
-| --- | --- |
-| Center half | `Ctrl+Win+C` |
-| Half left | `Ctrl+Win+Left` |
-| Half right | `Ctrl+Win+Right` |
-| Quarter top-left | `Ctrl+Win+[` |
-| Quarter top-right | `Ctrl+Win+]` |
-| Quarter bottom-left | `Ctrl+Win+;` |
-| Quarter bottom-right | `Ctrl+Win+'` |
-| Third left | `Ctrl+Win+,` |
-| Third center | `Ctrl+Win+.` |
-| Third right | `Ctrl+Win+/` |
-| Sixth top-left | `Ctrl+Win+I` |
-| Sixth top-center | `Ctrl+Win+O` |
-| Sixth top-right | `Ctrl+Win+P` |
-| Sixth bottom-left | `Ctrl+Win+J` |
-| Sixth bottom-center | `Ctrl+Win+K` |
-| Sixth bottom-right | `Ctrl+Win+L` |
-| Move to previous monitor | `Win+Alt+Left` |
-| Move to next monitor | `Win+Alt+Right` |
+### The Problem
+Traditional window management on Windows forces you into frustrating trade-offs:
+- **PowerToys FancyZones** requires dragging windows while holding modifier keys, interruptive zone templates, and per-layout shortcut confusion.
+- **Built-in Windows Snap** is limited to basic halves and quadrants with intrusive overlay popups and inconsistent multi-monitor behaviors.
+- **Tiling WMs (i3/glaze)** take over your entire desktop workflow with complex config languages and steep learning curves.
 
-Every shortcut can be rebound in Settings.
+### The Solution: wintangle
+`wintangle` provides a fast, predictable, keyboard-driven tiling engine that stays out of your way:
+- **16 Fixed Tiling Slots**: Instant halves, quarters, thirds, and sixths using intuitive, consistent chords (defaulting to `Ctrl+Win+…`).
+- **Multi-Monitor Fluidity**: Move windows across screens with `Win+Alt+Left/Right` while maintaining relative slot placement.
+- **Minimalist Footprint**: Lives unobtrusively in your system tray with near-zero idle CPU and memory consumption.
+- **True Win32 Precision**: Direct window positioning with configurable window-to-window and screen-edge gaps.
+
+---
+
+## Slot Layout Grid
+
+Each slot maps directly to a physical area on your current display:
+
+```text
+┌───────────────────────────────────────┬───────────────────────────────────────┐
+│              Half Left                │              Half Right               │
+│            Ctrl + Win + ←             │            Ctrl + Win + →             │
+├───────────────────────────────────────┴───────────────────────────────────────┤
+│                             Center Half (50% width)                           │
+│                                  Ctrl + Win + C                               │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────┬───────────────────────────────────────┐
+│           Quarter Top-Left            │           Quarter Top-Right           │
+│            Ctrl + Win + [             │            Ctrl + Win + ]             │
+├───────────────────────────────────────┼───────────────────────────────────────┤
+│          Quarter Bottom-Left          │          Quarter Bottom-Right         │
+│            Ctrl + Win + ;             │            Ctrl + Win + '             │
+└───────────────────────────────────────┴───────────────────────────────────────┘
+
+┌───────────────────────┬───────────────────────┬───────────────────────┐
+│      Third Left       │     Third Center      │      Third Right      │
+│    Ctrl + Win + ,     │    Ctrl + Win + .     │    Ctrl + Win + /     │
+└───────────────────────┴───────────────────────┴───────────────────────┘
+
+┌───────────────────────┬───────────────────────┬───────────────────────┐
+│    Sixth Top-Left     │   Sixth Top-Center    │    Sixth Top-Right    │
+│    Ctrl + Win + I     │    Ctrl + Win + O     │    Ctrl + Win + P     │
+├───────────────────────┼───────────────────────┼───────────────────────┤
+│   Sixth Bottom-Left   │  Sixth Bottom-Center  │  Sixth Bottom-Right   │
+│    Ctrl + Win + J     │    Ctrl + Win + K     │    Ctrl + Win + L     │
+└───────────────────────┴───────────────────────┴───────────────────────┘
+```
+
+---
+
+## Default Keyboard Shortcuts
+
+All shortcuts can be fully rebound to custom key combinations in the Settings window.
+
+### Halves & Center
+| Action | Description | Default Shortcut |
+| :--- | :--- | :--- |
+| **Half Left** | Left 50% split | `Ctrl+Win+Left` |
+| **Half Right** | Right 50% split | `Ctrl+Win+Right` |
+| **Center Half** | Centered 50% column | `Ctrl+Win+C` |
+
+### Quarters (Quadrants)
+| Action | Description | Default Shortcut |
+| :--- | :--- | :--- |
+| **Quarter Top-Left** | Top-left quadrant (50% × 50%) | `Ctrl+Win+[` |
+| **Quarter Top-Right** | Top-right quadrant (50% × 50%) | `Ctrl+Win+]` |
+| **Quarter Bottom-Left** | Bottom-left quadrant (50% × 50%) | `Ctrl+Win+;` |
+| **Quarter Bottom-Right** | Bottom-right quadrant (50% × 50%) | `Ctrl+Win+'` |
+
+### Thirds (Columns)
+| Action | Description | Default Shortcut |
+| :--- | :--- | :--- |
+| **Third Left** | Left 33.3% column | `Ctrl+Win+,` |
+| **Third Center** | Center 33.3% column | `Ctrl+Win+.` |
+| **Third Right** | Right 33.3% column | `Ctrl+Win+/` |
+
+### Sixths (3×2 Grid)
+| Action | Description | Default Shortcut |
+| :--- | :--- | :--- |
+| **Sixth Top-Left** | Top-left 1/6th tile | `Ctrl+Win+I` |
+| **Sixth Top-Center** | Top-center 1/6th tile | `Ctrl+Win+O` |
+| **Sixth Top-Right** | Top-right 1/6th tile | `Ctrl+Win+P` |
+| **Sixth Bottom-Left** | Bottom-left 1/6th tile | `Ctrl+Win+J` |
+| **Sixth Bottom-Center** | Bottom-center 1/6th tile | `Ctrl+Win+K` |
+| **Sixth Bottom-Right** | Bottom-right 1/6th tile | `Ctrl+Win+L` |
+
+### Multi-Monitor Navigation
+| Action | Description | Default Shortcut |
+| :--- | :--- | :--- |
+| **Previous Monitor** | Move focused window to previous monitor preserving relative slot | `Win+Alt+Left` |
+| **Next Monitor** | Move focused window to next monitor preserving relative slot | `Win+Alt+Right` |
+
+---
+
+## Features
+
+- **3-Tab Settings Window**:
+  - **Window Layouts**: Visual preview cards for all 16 slots with direct live tiling and a running window inspector.
+  - **Keyboard Shortcuts**: Interactive hotkey recorder with instant duplicate detection, modifier validation, and per-action factory reset.
+  - **Settings**: Live theme switcher (Dark / Light), precision gap sliders (0–50 px), ignored process manager, and global reset with confirmation.
+- **Custom WPF Tray Menu**: Sleek popup menu featuring a 2-column slot matrix, monospaced shortcut indicators, foreground process ignore toggle, and logon autostart toggle.
+- **Fluid Toast Notifications**: Non-intrusive animated WPF notifications for system diagnostics and elevation/permission warnings.
+- **Dynamic Dark & Light Themes**: Real-time theme switching with customized palettes, translucent window sheens, and robust font fallback chains.
+- **Configurable Gaps**: Independent control over **Window Gaps** (spacing between adjacent windows) and **Edge Gaps** (spacing along screen edges).
+- **Per-App Ignore List**: Easily exclude full-screen games, media players, or legacy tools from tiling via the tray menu or settings panel.
+- **HKCU Logon Autostart**: User-level registry startup (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`) — no administrator rights required.
+
+---
+
+## Architecture Summary
+
+The solution is divided into two focused projects:
+
+```text
+wintangle/
+├── src/
+│   ├── Wintangle.Core/       # Pure .NET 8 logic library (zero UI dependencies)
+│   │   ├── Geometry/         # Display topology, slot rectangles, gap arithmetic
+│   │   ├── Hotkeys/          # Chords, virtual keys, modifiers, keycap formatting
+│   │   └── Config/           # JSON config schema, file watching, normalization
+│   │
+│   └── Wintangle.App/        # Windows Presentation Foundation (WPF) shell
+│       ├── Interop/          # Native Win32 API bindings (User32, DwmApi, Shell32)
+│       ├── Hooks/            # Low-level keyboard hook (WH_KEYBOARD_LL)
+│       ├── Dispatch/         # Window movement, UIPI elevation checks, clamping
+│       ├── Services/         # Single-instance guard, logging, config sync
+│       ├── Themes/           # Dark/Light design tokens, controls, font chains
+│       └── UI/               # Settings window, custom tray menu, toast alerts
+│
+├── tests/
+│   └── Wintangle.Core.Tests/ # Comprehensive unit test suite
+└── docs/                     # Specifications, brand assets, and design notes
+```
+
+---
 
 ## Install
 
-Download the installer (`wintangle-setup.exe`) from the
-[Releases](https://github.com/wintangle/wintangle/releases) page. The setup
-installs per-user (no administrator rights needed), adds a Start Menu shortcut,
-and optionally launches wintangle when you finish.
+Download the installer (`wintangle-setup.exe`) from the [Releases](https://github.com/wintangle/wintangle/releases) page.
+- **Per-user installation**: No administrator privileges required.
+- **Self-contained**: No external .NET runtime installation required.
+- **System Requirements**: Windows 11 x64 (Windows 10 64-bit compatible).
 
-The installer is **unsigned**, so SmartScreen will show a warning. Click
-**More info → Run anyway**.
+> *Note:* The installer is currently unsigned. If Windows SmartScreen displays a warning, select **More info → Run anyway**.
 
-Requirements: Windows 11 x64 (Windows 10 64-bit may work but is not tested),
-.NET 8 runtime is **not** needed — the published build is self-contained.
+---
 
-## Build from source
+## Build from Source
 
-Requires the .NET 8 SDK.
+### Prerequisites
+- [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- Windows 10/11 x64 (for building the WPF application)
 
-```sh
+### Build & Test
+```powershell
+# Restore and build the solution
 dotnet restore Wintangle.sln
 dotnet build Wintangle.sln -c Release
+
+# Run test suite
 dotnet test tests/Wintangle.Core.Tests -c Release
 ```
 
-Windows only — the app is WPF (`net8.0-windows`) and cannot be built for other
-platforms.
+### Self-Contained Single-File Publish
+To publish a portable, self-contained single-file binary:
+```powershell
+dotnet publish src/Wintangle.App/Wintangle.App.csproj `
+  -c Release `
+  -r win-x64 `
+  --self-contained true `
+  -p:PublishSingleFile=true `
+  -p:IncludeNativeLibrariesForSelfExtract=true
+```
+
+---
 
 ## Configuration
 
-wintangle stores its settings in a JSON file created on first run:
-
-```
-%APPDATA%\wintangle\config.json
-```
-
-Example:
+Settings are saved automatically in `%APPDATA%\wintangle\config.json`. The file is monitored with a hot reload watcher:
 
 ```json
 {
@@ -95,76 +217,38 @@ Example:
 }
 ```
 
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `version` | number | Config schema version (currently 1). |
-| `windowGap` | number | Gap between adjacent windows, px. Range 0–50. |
-| `edgeGap` | number | Gap between a window and the screen edge, px. Range 0–50. |
-| `autoStart` | bool | Run at logon (writes the `HKCU\...\Run` key). |
-| `theme` | string | "Dark" or "Light", default "Dark". |
-| `shortcuts` | array | Rebound hotkeys. Empty array means "use the default table". |
-| `ignoredApps` | array | Process names wintangle never tiles (e.g. `"notepad.exe"`, lowercase). |
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `version` | `number` | Configuration schema version (currently `1`). |
+| `windowGap` | `number` | Space between adjacent windows in pixels (`0`–`50`, default `8`). |
+| `edgeGap` | `number` | Space between windows and screen edges in pixels (`0`–`50`, default `0`). |
+| `autoStart` | `boolean` | Enable launch at Windows user logon. |
+| `theme` | `string` | Active theme: `"Dark"` or `"Light"`. |
+| `shortcuts` | `array` | Rebound hotkey definitions (`action`, `virtualKey`, `modifiers`). |
+| `ignoredApps` | `array` | List of process names to ignore for tiling (e.g. `["game.exe"]`). |
 
-A missing, corrupt, or out-of-range value falls back to the default; the file is
-rewritten so a valid config is always on disk.
+---
 
-### Shortcut values are numeric
+## Design & Brand References
 
-`shortcuts` entries are serialized as numbers: `action` is the
-`HotkeyAction` enum value (0 = center-half, 1 = half-left, … 17 = next monitor),
-`virtualKey` is the Windows virtual-key code (e.g. 37 = `VK_LEFT`), and
-`modifiers` is a bitmask (`Ctrl`=1, `Alt`=2, `Win`=4, `Shift`=8). See
-`src/Wintangle.Core/Hotkeys/` (`HotkeyAction.cs`, `VirtualKey.cs`,
-`KeyModifiers.cs`) for the full tables. Rebinding from the Settings window is
-the easy way to get these right.
+- **UI & Interaction Specifications**: See [`docs/functionality-for-designer.md`](docs/functionality-for-designer.md) for detailed program workflows and capabilities.
+- **Design Tokens**: Standardized XAML resources defined in `Themes/Dark.xaml`, `Themes/Light.xaml`, and `Themes/Controls.xaml`.
+- **Typography & Font Chains**:
+  - `Font.Mono`: JetBrains Mono, Cascadia Code, Cascadia Mono, Consolas, Lucida Console, Courier New
+  - `Font.Body`: Segoe UI Variable Text, Segoe UI, Tahoma, Arial
+  - `Font.Display`: Segoe UI Variable Display, Segoe UI Semibold, Segoe UI, Tahoma, Arial
 
-### Gaps semantics
-
-- **Window gap** — space left between two adjacent windows. Each window
-  applies the full window gap on its interior edge, so the seam between two
-  adjacent windows is exactly the window gap.
-- **Edge gap** — space left between a window and the screen edge. A
-  boundary-touching edge applies only the edge gap.
-
-Defaults are 8 px window gap and 0 px edge gap.
-
-## Features
-
-- **Tray icon** — right-click the tray icon to tile the foreground window from
-  a menu, ignore the current app, toggle autostart, open Settings, or quit.
-- **Settings app** — a 7-tab window: **Window Layouts** shows preset cards
-  for every tiling slot, **Keyboard Shortcuts** has an inline **rebind
-  recorder** (press Record, hit the combo, done), and **Settings** covers gaps,
-  theme, autostart, and ignored apps. Advanced Rules, Mouse Actions, Plugins,
-  and Workspaces are placeholders for later releases. Recording rejects invalid
-  combos (no modifiers, bare modifiers); combos like Win+L are OS-reserved and
-  will not work — the recorder cannot detect these.
-- **Per-app ignore** — "Ignore this app" from the tray; ignored windows are
-  never tiled. Editable in `ignoredApps`.
-- **Autostart** — runs at logon via the `HKCU` Run key (per-user, no admin).
-- **Multi-monitor moves** — `Win+Alt+Left/Right` moves the window to the
-  adjacent monitor and re-applies the same slot relative to that screen.
+---
 
 ## Limitations
 
-- **Elevated windows are skipped.** Windows UIPI blocks a non-elevated process
-  from moving windows owned by an elevated process; wintangle detects this and
-  skips the move with a tray balloon. Running wintangle elevated lets it move
-  anything, but that's not the default (or recommended).
-- **UWP (Store) windows may ignore moves** — some modern apps don't respect
-  `SetWindowPos` the way classic Win32 windows do.
-- **Non-US keyboard layouts** use US key positions. Shortcuts are bound to
-  physical virtual-key codes, so `Ctrl+Win+[` on a German layout presses
-  whatever key is physically in that position. Rebind affected shortcuts from
-  Settings if needed.
-- **Anti-cheat games may block low-level hooks.** wintangle uses a
-  `WH_KEYBOARD_LL` hook; games with kernel-level anti-cheat can refuse to run
-  alongside it (or swallow the hook). Add them to ignored apps or quit wintangle
-  before gaming.
-- **Taskbar auto-hide edge case** — with the taskbar set to auto-hide, an
-  edge-gap of 0 can place a window flush against the auto-hidden taskbar
-  reserve area. Bump the edge gap if the taskbar edge misbehaves.
+- **Elevated / Admin Windows**: Non-elevated processes cannot reposition windows belonging to elevated processes due to Windows User Interface Privilege Isolation (UIPI). wintangle gracefully detects this condition and notifies the user.
+- **UWP / Windows Store Apps**: Some modern UWP containers restrict standard Win32 `SetWindowPos` placement.
+- **Anti-Cheat Software**: Certain kernel-level anti-cheat engines intercept low-level keyboard hooks (`WH_KEYBOARD_LL`). Add affected games to `ignoredApps`.
+
+---
 
 ## License
 
-MIT — see [LICENSE](LICENSE). © 2026 wintangle contributors.
+Distributed under the MIT License. See [`LICENSE`](LICENSE) for details.  
+© 2026 wintangle contributors.

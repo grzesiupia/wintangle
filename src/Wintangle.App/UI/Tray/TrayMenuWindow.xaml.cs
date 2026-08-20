@@ -172,7 +172,7 @@ public partial class TrayMenuWindow : Window
         {
             Text = chordText,
             FontSize = 9.5,
-            FontFamily = (FontFamily)FindResource("Font.Mono"),
+            FontFamily = TryFindResource("Font.Mono") as FontFamily ?? new FontFamily("JetBrains Mono, Cascadia Code, Consolas"),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(6, 0, 0, 0),
         };

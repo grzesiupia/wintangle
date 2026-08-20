@@ -1,4 +1,7 @@
-﻿using System.Windows;
+﻿using System;
+using System.Threading;
+using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Wintangle.App.Services;
 using Wintangle.Core.Config;
@@ -22,6 +25,17 @@ namespace Wintangle.App
             // keeps it to a single "Unhandled" log entry.
             DispatcherUnhandledException += OnDispatcherUnhandledException;
             AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
+
+            try
+            {
+                InitializeComponent();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("App InitializeComponent failed", ex);
+            }
+
+            EnsureFallbackResources();
         }
 
         private static int s_unhandledLogged;
@@ -48,10 +62,28 @@ namespace Wintangle.App
         }
 
         /// <summary>
-        /// Swaps the merged theme dictionary (MergedDictionaries[0], seeded by
-        /// App.xaml) to <paramref name="theme"/>. Normalizes unknown values to
+        /// Ensures critical font family resources exist even if theme loading fails.
+        /// </summary>
+        private void EnsureFallbackResources()
+        {
+            if (TryFindResource("Font.Mono") == null)
+            {
+                Resources["Font.Mono"] = new FontFamily("JetBrains Mono, Cascadia Code, Cascadia Mono, Consolas, Lucida Console, Courier New");
+            }
+            if (TryFindResource("Font.Body") == null)
+            {
+                Resources["Font.Body"] = new FontFamily("Segoe UI Variable Text, Segoe UI, Tahoma, Arial");
+            }
+            if (TryFindResource("Font.Display") == null)
+            {
+                Resources["Font.Display"] = new FontFamily("Segoe UI Variable Display, Segoe UI Semibold, Segoe UI, Tahoma, Arial");
+            }
+        }
+
+        /// <summary>
+        /// Swaps the merged theme dictionary to <paramref name="theme"/>. Normalizes unknown values to
         /// the default and no-ops when the theme is already applied. Never
-        /// throws — a failed swap leaves the previous theme in place.
+        /// throws — a failed swap leaves the previous theme in place and ensures fallback resources.
         /// </summary>
         public void ApplyTheme(string theme)
         {
@@ -63,16 +95,59 @@ namespace Wintangle.App
 
             try
             {
+                var themeUri = new Uri($"pack://application:,,,/Wintangle.App;component/Themes/{normalized}.xaml", UriKind.Absolute);
                 var dictionary = new ResourceDictionary
                 {
-                    Source = new Uri($"Themes/{normalized}.xaml", UriKind.Relative),
+                    Source = themeUri,
                 };
-                Resources.MergedDictionaries[0] = dictionary;
+
+                // Locate existing theme dictionary by checking Source (ends with Dark.xaml or Light.xaml or matching theme URI)
+                int themeIndex = -1;
+                for (int i = 0; i < Resources.MergedDictionaries.Count; i++)
+                {
+                    var src = Resources.MergedDictionaries[i].Source?.ToString();
+                    if (src != null && (src.EndsWith("Dark.xaml", StringComparison.OrdinalIgnoreCase) ||
+                                        src.EndsWith("Light.xaml", StringComparison.OrdinalIgnoreCase) ||
+                                        src.Contains("/Themes/", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        themeIndex = i;
+                        break;
+                    }
+                }
+
+                if (themeIndex >= 0)
+                {
+                    Resources.MergedDictionaries[themeIndex] = dictionary;
+                }
+                else
+                {
+                    Resources.MergedDictionaries.Insert(0, dictionary);
+                }
+
+                // Ensure Controls.xaml is always present in MergedDictionaries
+                bool hasControls = false;
+                for (int i = 0; i < Resources.MergedDictionaries.Count; i++)
+                {
+                    var src = Resources.MergedDictionaries[i].Source?.ToString();
+                    if (src != null && src.EndsWith("Controls.xaml", StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasControls = true;
+                        break;
+                    }
+                }
+
+                if (!hasControls)
+                {
+                    var controlsUri = new Uri("pack://application:,,,/Wintangle.App;component/Themes/Controls.xaml", UriKind.Absolute);
+                    Resources.MergedDictionaries.Add(new ResourceDictionary { Source = controlsUri });
+                }
+
                 CurrentTheme = normalized;
             }
             catch (Exception ex)
             {
                 Log.Warn($"theme apply failed for '{normalized}': {ex.Message}");
+                EnsureFallbackResources();
             }
         }
     }

@@ -40,8 +40,8 @@
         <GradientStop Color="#00FFFFFF" Offset="1.0" />
     </LinearGradientBrush>
 
-    <FontFamily x:Key="Font.Body">Segoe UI Variable Text, Segoe UI</FontFamily>
-    <FontFamily x:Key="Font.Display">Segoe UI Variable Display, Segoe UI</FontFamily>
-    <FontFamily x:Key="Font.Mono">Cascadia Mono, Consolas</FontFamily>
+    <FontFamily x:Key="Font.Body">Segoe UI Variable Text, Segoe UI, Tahoma, Arial</FontFamily>
+    <FontFamily x:Key="Font.Display">Segoe UI Variable Display, Segoe UI Semibold, Segoe UI, Tahoma, Arial</FontFamily>
+    <FontFamily x:Key="Font.Mono">JetBrains Mono, Cascadia Code, Cascadia Mono, Consolas, Lucida Console, Courier New</FontFamily>
 
 </ResourceDictionary>
