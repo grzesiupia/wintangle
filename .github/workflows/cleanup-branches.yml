@@ -1,0 +1,40 @@
+name: Cleanup merged branches
+
+on:
+  schedule:
+    - cron: '17 4 * * *'   # daily, 04:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete merged branches (except main/develop)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PROTECTED="main develop"
+          gh api --paginate \
+            "repos/${{ github.repository }}/pulls?state=closed&per_page=100&sort=updated&direction=desc" \
+            | jq -r '.[] | select(.merged_at != null) | .head.ref' \
+            | sort -u \
+            | while read -r branch; do
+                if printf '%s\n' "$PROTECTED" | grep -qx "$branch"; then
+                  echo "skip (protected): $branch"
+                  continue
+                fi
+                if gh api "repos/${{ github.repository }}/git/ref/heads/$branch" >/dev/null 2>&1; then
+                  encoded=$(printf '%s' "$branch" | jq -sRr @uri)
+                  if gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$encoded" >/dev/null 2>&1; then
+                    echo "deleted: $branch"
+                  else
+                    echo "delete failed: $branch"
+                  fi
+                else
+                  echo "skip (already gone): $branch"
+                fi
+              done
