@@ -5,7 +5,8 @@
 # wintangle
 
 **A lightweight, keyboard-first window manager for Windows 11.**  
-Tile the active window into 16 clean geometry slots with muscle-memory chords — zero dragging, zero zone guesswork.
+
+*Created because Windows lacks a keyboard-first window management tool like [Rectangle](https://github.com/rxhanson/rectangle) — the great macOS window manager.*
 
 [![CI](https://img.shields.io/badge/CI-passing-brightgreen.svg)](https://github.com/wintangle/wintangle/actions)
 [![Release](https://img.shields.io/github/v/release/wintangle/wintangle?color=blue&label=release)](https://github.com/wintangle/wintangle/releases)
@@ -32,42 +33,6 @@ Traditional window management on Windows forces you into frustrating trade-offs:
 - **Minimalist Footprint**: Lives unobtrusively in your system tray with near-zero idle CPU and memory consumption.
 - **True Win32 Precision**: Direct window positioning with configurable window-to-window and screen-edge gaps.
 
----
-
-## Slot Layout Grid
-
-Each slot maps directly to a physical area on your current display:
-
-```text
-┌───────────────────────────────────────┬───────────────────────────────────────┐
-│              Half Left                │              Half Right               │
-│            Ctrl + Win + ←             │            Ctrl + Win + →             │
-├───────────────────────────────────────┴───────────────────────────────────────┤
-│                             Center Half (50% width)                           │
-│                                  Ctrl + Win + C                               │
-└───────────────────────────────────────────────────────────────────────────────┘
-
-┌───────────────────────────────────────┬───────────────────────────────────────┐
-│           Quarter Top-Left            │           Quarter Top-Right           │
-│            Ctrl + Win + [             │            Ctrl + Win + ]             │
-├───────────────────────────────────────┼───────────────────────────────────────┤
-│          Quarter Bottom-Left          │          Quarter Bottom-Right         │
-│            Ctrl + Win + ;             │            Ctrl + Win + '             │
-└───────────────────────────────────────┴───────────────────────────────────────┘
-
-┌───────────────────────┬───────────────────────┬───────────────────────┐
-│      Third Left       │     Third Center      │      Third Right      │
-│    Ctrl + Win + ,     │    Ctrl + Win + .     │    Ctrl + Win + /     │
-└───────────────────────┴───────────────────────┴───────────────────────┘
-
-┌───────────────────────┬───────────────────────┬───────────────────────┐
-│    Sixth Top-Left     │   Sixth Top-Center    │    Sixth Top-Right    │
-│    Ctrl + Win + I     │    Ctrl + Win + O     │    Ctrl + Win + P     │
-├───────────────────────┼───────────────────────┼───────────────────────┤
-│   Sixth Bottom-Left   │  Sixth Bottom-Center  │  Sixth Bottom-Right   │
-│    Ctrl + Win + J     │    Ctrl + Win + K     │    Ctrl + Win + L     │
-└───────────────────────┴───────────────────────┴───────────────────────┘
-```
 
 ---
 
@@ -130,33 +95,6 @@ All shortcuts can be fully rebound to custom key combinations in the Settings wi
 
 ---
 
-## Architecture Summary
-
-The solution is divided into two focused projects:
-
-```text
-wintangle/
-├── src/
-│   ├── Wintangle.Core/       # Pure .NET 8 logic library (zero UI dependencies)
-│   │   ├── Geometry/         # Display topology, slot rectangles, gap arithmetic
-│   │   ├── Hotkeys/          # Chords, virtual keys, modifiers, keycap formatting
-│   │   └── Config/           # JSON config schema, file watching, normalization
-│   │
-│   └── Wintangle.App/        # Windows Presentation Foundation (WPF) shell
-│       ├── Interop/          # Native Win32 API bindings (User32, DwmApi, Shell32)
-│       ├── Hooks/            # Low-level keyboard hook (WH_KEYBOARD_LL)
-│       ├── Dispatch/         # Window movement, UIPI elevation checks, clamping
-│       ├── Services/         # Single-instance guard, logging, config sync
-│       ├── Themes/           # Dark/Light design tokens, controls, font chains
-│       └── UI/               # Settings window, custom tray menu, toast alerts
-│
-├── tests/
-│   └── Wintangle.Core.Tests/ # Comprehensive unit test suite
-└── docs/                     # Specifications, brand assets, and design notes
-```
-
----
-
 ## Install
 
 Download the installer (`wintangle-setup.exe`) from the [Releases](https://github.com/wintangle/wintangle/releases) page.
@@ -182,17 +120,6 @@ dotnet build Wintangle.sln -c Release
 
 # Run test suite
 dotnet test tests/Wintangle.Core.Tests -c Release
-```
-
-### Self-Contained Single-File Publish
-To publish a portable, self-contained single-file binary:
-```powershell
-dotnet publish src/Wintangle.App/Wintangle.App.csproj `
-  -c Release `
-  -r win-x64 `
-  --self-contained true `
-  -p:PublishSingleFile=true `
-  -p:IncludeNativeLibrariesForSelfExtract=true
 ```
 
 ---
@@ -226,17 +153,6 @@ Settings are saved automatically in `%APPDATA%\wintangle\config.json`. The file 
 | `theme` | `string` | Active theme: `"Dark"` or `"Light"`. |
 | `shortcuts` | `array` | Rebound hotkey definitions (`action`, `virtualKey`, `modifiers`). |
 | `ignoredApps` | `array` | List of process names to ignore for tiling (e.g. `["game.exe"]`). |
-
----
-
-## Design & Brand References
-
-- **UI & Interaction Specifications**: See [`docs/functionality-for-designer.md`](docs/functionality-for-designer.md) for detailed program workflows and capabilities.
-- **Design Tokens**: Standardized XAML resources defined in `Themes/Dark.xaml`, `Themes/Light.xaml`, and `Themes/Controls.xaml`.
-- **Typography & Font Chains**:
-  - `Font.Mono`: JetBrains Mono, Cascadia Code, Cascadia Mono, Consolas, Lucida Console, Courier New
-  - `Font.Body`: Segoe UI Variable Text, Segoe UI, Tahoma, Arial
-  - `Font.Display`: Segoe UI Variable Display, Segoe UI Semibold, Segoe UI, Tahoma, Arial
 
 ---
 
