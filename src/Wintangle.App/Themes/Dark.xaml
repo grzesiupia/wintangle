@@ -3,6 +3,10 @@
 
     <!-- wintangle dark theme — brushes + fonts (design tokens from the
          wintangle-app.html export). -->
+    <Color x:Key="Color.Accent">#6BADFF</Color>
+    <Color x:Key="Color.AccentGlow">#6BADFF</Color>
+    <Color x:Key="Color.Shadow">#000000</Color>
+
     <SolidColorBrush x:Key="Brush.Bg" Color="#090E12" />
     <SolidColorBrush x:Key="Brush.Bg2" Color="#0D1217" />
     <SolidColorBrush x:Key="Brush.Surface" Color="#13191F" />
@@ -11,6 +15,9 @@
     <SolidColorBrush x:Key="Brush.Border" Color="#282F36" />
     <SolidColorBrush x:Key="Brush.Accent" Color="#6BADFF" />
     <SolidColorBrush x:Key="Brush.AccentSoft" Color="#2E6BADFF" />
+    <SolidColorBrush x:Key="Brush.AccentGlow" Color="#6BADFF" />
+    <SolidColorBrush x:Key="Brush.ActiveSlotGlow" Color="#506BADFF" />
+    <SolidColorBrush x:Key="Brush.FocusRing" Color="#6BADFF" />
     <SolidColorBrush x:Key="Brush.FgSoft" Color="#12E9EBEE" />
     <SolidColorBrush x:Key="Brush.Danger" Color="#F97770" />
     <SolidColorBrush x:Key="Brush.DangerSoft" Color="#29F97770" />
@@ -23,6 +30,16 @@
     <SolidColorBrush x:Key="Brush.Muted60" Color="#60666C" />
     <SolidColorBrush x:Key="Brush.DangerBorder32" Color="#52F97770" />
     <SolidColorBrush x:Key="Brush.FgHoverBorder" Color="#464B51" />
+
+    <LinearGradientBrush x:Key="Brush.HeaderSheen" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#18FFFFFF" Offset="0.0" />
+        <GradientStop Color="#00FFFFFF" Offset="1.0" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="Brush.CardSheen" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#0DFFFFFF" Offset="0.0" />
+        <GradientStop Color="#00FFFFFF" Offset="1.0" />
+    </LinearGradientBrush>
 
     <FontFamily x:Key="Font.Body">Segoe UI Variable Text, Segoe UI</FontFamily>
     <FontFamily x:Key="Font.Display">Segoe UI Variable Display, Segoe UI</FontFamily>

@@ -2,6 +2,10 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- wintangle light theme — brushes + fonts (same keys as Dark.xaml). -->
+    <Color x:Key="Color.Accent">#1779E1</Color>
+    <Color x:Key="Color.AccentGlow">#1779E1</Color>
+    <Color x:Key="Color.Shadow">#102030</Color>
+
     <SolidColorBrush x:Key="Brush.Bg" Color="#FBFCFD" />
     <SolidColorBrush x:Key="Brush.Bg2" Color="#FDFDFE" />
     <SolidColorBrush x:Key="Brush.Surface" Color="#FFFFFF" />
@@ -10,6 +14,9 @@
     <SolidColorBrush x:Key="Brush.Border" Color="#E2E5E8" />
     <SolidColorBrush x:Key="Brush.Accent" Color="#1779E1" />
     <SolidColorBrush x:Key="Brush.AccentSoft" Color="#1F1779E1" />
+    <SolidColorBrush x:Key="Brush.AccentGlow" Color="#1779E1" />
+    <SolidColorBrush x:Key="Brush.ActiveSlotGlow" Color="#351779E1" />
+    <SolidColorBrush x:Key="Brush.FocusRing" Color="#1779E1" />
     <SolidColorBrush x:Key="Brush.FgSoft" Color="#0D0E1217" />
     <SolidColorBrush x:Key="Brush.Danger" Color="#C9302D" />
     <SolidColorBrush x:Key="Brush.DangerSoft" Color="#1FC9302D" />
@@ -22,6 +29,16 @@
     <SolidColorBrush x:Key="Brush.Muted60" Color="#A6A9AD" />
     <SolidColorBrush x:Key="Brush.DangerBorder32" Color="#52C9302D" />
     <SolidColorBrush x:Key="Brush.FgHoverBorder" Color="#C5C6C7" />
+
+    <LinearGradientBrush x:Key="Brush.HeaderSheen" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#40FFFFFF" Offset="0.0" />
+        <GradientStop Color="#00FFFFFF" Offset="1.0" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="Brush.CardSheen" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#20FFFFFF" Offset="0.0" />
+        <GradientStop Color="#00FFFFFF" Offset="1.0" />
+    </LinearGradientBrush>
 
     <FontFamily x:Key="Font.Body">Segoe UI Variable Text, Segoe UI</FontFamily>
     <FontFamily x:Key="Font.Display">Segoe UI Variable Display, Segoe UI</FontFamily>

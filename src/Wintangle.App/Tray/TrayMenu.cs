@@ -1,55 +1,25 @@
-using System.Diagnostics;
-using Wintangle.App.Interop;
+using System.Windows;
 using Wintangle.App.Services;
-using Wintangle.App.UI;
+using Wintangle.App.UI.Tray;
 using Wintangle.Core.Geometry;
 using Wintangle.Core.Hotkeys;
 
 namespace Wintangle.App.Tray;
 
 /// <summary>
-/// Right-click context menu for the tray icon. Rebuilt from scratch on every
-/// right-click; command ids are returned synchronously via TPM_RETURNCMD and
-/// dispatched immediately (no WM_COMMAND plumbing needed).
+/// Custom WPF tray menu controller. Manages display and dispatch of actions
+/// for the custom WPF tray popup menu.
 /// </summary>
 internal sealed class TrayMenu
 {
-    private const uint IdBase = 1;
-
-    private const uint IdPrevMonitor = IdBase + 16;
-    private const uint IdNextMonitor = IdBase + 17;
-    private const uint IdIgnoreApp = IdBase + 18;
-    private const uint IdAutostart = IdBase + 19;
-    private const uint IdSettings = IdBase + 20;
-    private const uint IdQuit = IdBase + 21;
-
-    /// <summary>The 16 slot actions, in default-table order.</summary>
-    private static readonly HotkeyAction[] s_slotActions =
-    {
-        HotkeyAction.CenterHalf,
-        HotkeyAction.HalfLeft,
-        HotkeyAction.HalfRight,
-        HotkeyAction.QuarterTopLeft,
-        HotkeyAction.QuarterTopRight,
-        HotkeyAction.QuarterBottomLeft,
-        HotkeyAction.QuarterBottomRight,
-        HotkeyAction.ThirdLeft,
-        HotkeyAction.ThirdCenter,
-        HotkeyAction.ThirdRight,
-        HotkeyAction.SixthTopLeft,
-        HotkeyAction.SixthTopCenter,
-        HotkeyAction.SixthTopRight,
-        HotkeyAction.SixthBottomLeft,
-        HotkeyAction.SixthBottomCenter,
-        HotkeyAction.SixthBottomRight,
-    };
-
     private readonly IntPtr _hostHwnd;
     private readonly RuntimeState _state;
     private readonly ConfigService _config;
     private readonly Action<HotkeyAction, GapSettings> _apply;
     private readonly Action _quit;
     private readonly Action _showSettings;
+
+    private TrayMenuWindow? _menuWindow;
 
     public TrayMenu(
         IntPtr hostHwnd,
@@ -74,222 +44,31 @@ internal sealed class TrayMenu
             return;
         }
 
-        var menu = TrayApi.CreatePopupMenu();
-        if (menu == IntPtr.Zero)
+        var app = Application.Current;
+        if (app == null)
         {
+            return;
+        }
+
+        if (app.Dispatcher.CheckAccess())
+        {
+            ShowCore();
             return;
         }
 
         try
         {
-            Build(menu);
-            TrayApi.GetCursorPos(out var pt);
-
-            // Classic tray-menu dance: the menu must not steal activation from
-            // the calling window, and the WM_NULL message dismisses the menu
-            // immediately after a selection. Remember who owned the foreground
-            // before the dance so it can be given back when the menu closes.
-            var previousForeground = WindowApi.GetForegroundWindow();
-            TrayApi.SetForegroundWindow(_hostHwnd);
-            uint command = TrayApi.TrackPopupMenu(
-                menu,
-                TrayApi.TPM_RETURNCMD | TrayApi.TPM_LEFTALIGN | TrayApi.TPM_BOTTOMALIGN,
-                pt.X,
-                pt.Y,
-                0,
-                _hostHwnd,
-                IntPtr.Zero);
-            TrayApi.PostMessageW(_hostHwnd, NativeMethods.WM_NULL, IntPtr.Zero, IntPtr.Zero);
-
-            // Without this, the hidden host keeps the foreground after the menu
-            // closes and keystrokes land nowhere until the user clicks.
-            RestoreForeground(previousForeground);
-
-            HandleCommand(command);
+            app.Dispatcher.BeginInvoke(ShowCore);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException)
         {
-            Log.Error("Tray command failed", ex);
-        }
-        finally
-        {
-            TrayApi.DestroyMenu(menu);
+            // Shutting down
         }
     }
 
-    private void Build(IntPtr menu)
+    private void ShowCore()
     {
-        uint id = IdBase;
-        foreach (var action in s_slotActions)
-        {
-            TrayApi.AppendMenuW(menu, TrayApi.MF_STRING, new UIntPtr(id++), LabelFor(action));
-        }
-
-        TrayApi.AppendMenuW(menu, TrayApi.MF_SEPARATOR, UIntPtr.Zero, null);
-        TrayApi.AppendMenuW(menu, TrayApi.MF_STRING, new UIntPtr(IdPrevMonitor), "Move to Previous Monitor");
-        TrayApi.AppendMenuW(menu, TrayApi.MF_STRING, new UIntPtr(IdNextMonitor), "Move to Next Monitor");
-
-        TrayApi.AppendMenuW(menu, TrayApi.MF_SEPARATOR, UIntPtr.Zero, null);
-
-        var ignoreFlags = TrayApi.MF_STRING;
-        var ignoreLabel = "Ignore this app";
-        var foreground = GetForegroundProcessName();
-        if (foreground != null)
-        {
-            ignoreLabel = $"Ignore {foreground}";
-            if (_state.IsIgnored(foreground))
-            {
-                ignoreFlags |= TrayApi.MF_CHECKED;
-            }
-        }
-
-        TrayApi.AppendMenuW(menu, ignoreFlags, new UIntPtr(IdIgnoreApp), ignoreLabel);
-
-        var autostartFlags = TrayApi.MF_STRING;
-        if (_config.GetAutoStartEnabled())
-        {
-            autostartFlags |= TrayApi.MF_CHECKED;
-        }
-
-        TrayApi.AppendMenuW(menu, autostartFlags, new UIntPtr(IdAutostart), "Autostart");
-
-        TrayApi.AppendMenuW(menu, TrayApi.MF_SEPARATOR, UIntPtr.Zero, null);
-        TrayApi.AppendMenuW(menu, TrayApi.MF_STRING, new UIntPtr(IdSettings), "Settings…");
-        TrayApi.AppendMenuW(menu, TrayApi.MF_STRING, new UIntPtr(IdQuit), "Quit");
-    }
-
-    private void HandleCommand(uint command)
-    {
-        if (command >= IdBase && command < IdBase + s_slotActions.Length)
-        {
-            _apply(s_slotActions[command - IdBase], _state.Gaps);
-            return;
-        }
-
-        switch (command)
-        {
-            case IdPrevMonitor:
-                _apply(HotkeyAction.PrevMonitor, _state.Gaps);
-                break;
-
-            case IdNextMonitor:
-                _apply(HotkeyAction.NextMonitor, _state.Gaps);
-                break;
-
-            case IdIgnoreApp:
-                ToggleIgnoreCurrentApp();
-                break;
-
-            case IdAutostart:
-                _config.ToggleAutoStart();
-                break;
-
-            case IdSettings:
-                _showSettings();
-                break;
-
-            case IdQuit:
-                _quit();
-                break;
-        }
-    }
-
-    private string LabelFor(HotkeyAction action)
-    {
-        // Show the effective binding (custom override or default) so the tray
-        // label stays in sync after a rebind. Fall back to the default label
-        // for an unknown action.
-        var hotkey = _config.GetShortcut(action);
-        var label = hotkey is { } effective ? HotkeyLabels.Format(effective) : DefaultHotkeys.Format(action);
-        return $"{UiLabels.ActionName(action)} — {label}";
-    }
-
-    private void ToggleIgnoreCurrentApp()
-    {
-        var name = GetForegroundProcessName();
-        if (name == null)
-        {
-            return;
-        }
-
-        if (_state.IsIgnored(name))
-        {
-            _config.RemoveIgnored(name);
-        }
-        else
-        {
-            _config.AddIgnored(name);
-        }
-    }
-
-    /// <summary>
-    /// Returns foreground to the window that owned it before the tray menu was
-    /// shown. A direct SetForegroundWindow can be refused (foreground lock), so
-    /// fall back to attaching to the current foreground thread and retrying,
-    /// then BringWindowToTop as a last resort.
-    /// </summary>
-    private void RestoreForeground(IntPtr previous)
-    {
-        if (previous == IntPtr.Zero || previous == _hostHwnd)
-        {
-            return;
-        }
-
-        if (TrayApi.SetForegroundWindow(previous))
-        {
-            return;
-        }
-
-        // Foreground lock: the OS refused the direct call. Attach to the
-        // current foreground thread (the shell owns the lock), retry, then
-        // detach before anything else runs.
-        var fgThread = WindowApi.GetWindowThreadProcessId(WindowApi.GetForegroundWindow(), out _);
-        var currentThread = HookApi.GetCurrentThreadId();
-        var attached = fgThread != 0 && fgThread != currentThread
-            && WindowApi.AttachThreadInput(currentThread, fgThread, true);
-        if (attached)
-        {
-            try
-            {
-                if (TrayApi.SetForegroundWindow(previous))
-                {
-                    return;
-                }
-            }
-            finally
-            {
-                WindowApi.AttachThreadInput(currentThread, fgThread, false);
-            }
-        }
-
-        WindowApi.BringWindowToTop(previous);
-    }
-
-    private static string? GetForegroundProcessName()
-    {
-        var hwnd = WindowApi.GetForegroundWindow();
-        if (hwnd == IntPtr.Zero)
-        {
-            return null;
-        }
-
-        if (WindowApi.GetWindowThreadProcessId(hwnd, out var pid) == 0 || pid == 0)
-        {
-            return null;
-        }
-
-        if (pid == (uint)Environment.ProcessId)
-        {
-            return null;
-        }
-
-        try
-        {
-            return Process.GetProcessById((int)pid).ProcessName;
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or System.ComponentModel.Win32Exception)
-        {
-            return null;
-        }
+        _menuWindow ??= new TrayMenuWindow(_hostHwnd, _state, _config, _apply, _quit, _showSettings);
+        _menuWindow.ShowMenu();
     }
 }

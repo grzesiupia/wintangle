@@ -257,10 +257,20 @@ public static class Program
             // Never leave the hook in recording mode (settings window closed
             // mid-recording, or a stray second-instance race).
             s_hook.RecordingMode = false;
-            s_hook.Stop();
+            s_hook.Dispose();
+            s_hook = null;
         }
 
-        s_tray?.Remove();
+        s_tray?.Dispose();
+        s_tray = null;
+
+        if (s_hostSource != null)
+        {
+            s_hostSource.RemoveHook(WndProc);
+            s_hostSource.Dispose();
+            s_hostSource = null;
+        }
+
         s_config?.Dispose();
         SingleInstance.Release();
     }

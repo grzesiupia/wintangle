@@ -87,62 +87,10 @@ internal sealed class TrayIcon : IDisposable
         }
     }
 
-    /// <summary>Shows an info balloon; silently no-ops if the icon isn't up.</summary>
-    public void ShowBalloon(string title, string text)
+    /// <summary>Shows a custom toast balloon matching the design.</summary>
+    public void ShowBalloon(string title, string text, bool isError = false)
     {
-        if (!_added || !OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
-        // Marshal to the STA UI thread: this can be invoked from the keyboard
-        // hook thread via WindowDispatcher (elevation-skip balloons). All
-        // access to _nid is confined to the UI thread (Add/Remove already run
-        // there; the balloon path is marshaled here), so no lock is needed.
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher == null)
-        {
-            return; // no dispatcher yet, or shutting down — nothing to notify
-        }
-
-        if (dispatcher.CheckAccess())
-        {
-            ShowBalloonCore(title, text);
-            return;
-        }
-
-        try
-        {
-            dispatcher.BeginInvoke(() => ShowBalloonCore(title, text));
-        }
-        catch (Exception ex)
-        {
-            // Dispatcher can reject work once it has started shutting down.
-            Log.Warn($"tray balloon marshal failed: {ex.Message}");
-        }
-    }
-
-    private void ShowBalloonCore(string title, string text)
-    {
-        if (!_added || !OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
-        try
-        {
-            _nid.uFlags |= TrayApi.NIF_INFO;
-            _nid.szInfo = text ?? string.Empty;
-            _nid.szInfoTitle = title ?? string.Empty;
-            _nid.dwInfoFlags = TrayApi.NIIF_INFO;
-            TrayApi.Shell_NotifyIconW(TrayApi.NIM_MODIFY, ref _nid);
-            // Reset for subsequent operations.
-            _nid.uFlags = TrayApi.NIF_MESSAGE | TrayApi.NIF_ICON | TrayApi.NIF_TIP;
-        }
-        catch (Exception ex)
-        {
-            Log.Warn($"tray balloon failed: {ex.Message}");
-        }
+        UI.Tray.ToastWindow.ShowToast(title, text, isError);
     }
 
     /// <summary>Removes the icon from the tray.</summary>

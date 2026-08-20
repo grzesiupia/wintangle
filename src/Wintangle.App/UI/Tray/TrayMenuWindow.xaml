@@ -1,0 +1,295 @@
+<Window x:Class="Wintangle.App.UI.Tray.TrayMenuWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="wintangle menu"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
+    <Window.Resources>
+        <!-- Tray menu button styles -->
+        <Style x:Key="TraySlotButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Fg}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.FgSoft}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TrayMenuItemButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Fg}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.FgSoft}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TrayMenuDangerButton" TargetType="Button" BasedOn="{StaticResource TrayMenuItemButton}">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.DangerSoft}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- Outer margin for the drop shadow -->
+    <Grid Margin="18">
+        <!-- Main menu surface (330px, 10px radius, shadow) -->
+        <Border Width="330"
+                Background="{DynamicResource Brush.Surface}"
+                BorderBrush="{DynamicResource Brush.Border}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="7">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="32"
+                                  ShadowDepth="10"
+                                  Opacity="0.45"
+                                  Color="{DynamicResource Color.Shadow}" />
+            </Border.Effect>
+
+            <StackPanel>
+                <!-- ── Header (brand tile + app name) ─────────────────────── -->
+                <StackPanel Orientation="Horizontal" Margin="4,3,4,6" VerticalAlignment="Center">
+                    <Border Width="20"
+                            Height="20"
+                            CornerRadius="6"
+                            Background="{DynamicResource Brush.Fg}"
+                            Margin="0,0,8,0"
+                            VerticalAlignment="Center">
+                        <!-- Tangle ribbon mark -->
+                        <Path Width="13"
+                              Height="13"
+                              Stretch="Uniform"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              Stroke="{DynamicResource Brush.Bg}"
+                              StrokeThickness="1.6"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              Data="M4 4h16M4 4v16M12 4v16M12 8h8M20 8v12M4 14h8M12 18h8" />
+                    </Border>
+                    <TextBlock Text="wintangle"
+                               FontSize="12.5"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource Brush.Fg}" />
+                </StackPanel>
+
+                <!-- ── Section label ──────────────────────────────────────── -->
+                <TextBlock Text="TILE FOCUSED WINDOW"
+                           FontFamily="{DynamicResource Font.Mono}"
+                           FontSize="9.5"
+                           Margin="4,4,4,4"
+                           Foreground="{DynamicResource Brush.Muted}" />
+
+                <!-- ── 2-Column Slot Grid ─────────────────────────────────── -->
+                <UniformGrid x:Name="SlotGrid" Columns="2" Margin="0,0,0,2" />
+
+                <!-- ── Divider ────────────────────────────────────────────── -->
+                <Border Height="1"
+                        Background="{DynamicResource Brush.Border}"
+                        Margin="2,4" />
+
+                <!-- ── Monitor Navigation ─────────────────────────────────── -->
+                <Button x:Name="PrevMonButton"
+                        Style="{StaticResource TrayMenuItemButton}"
+                        Click="PrevMonButton_Click">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Move to previous monitor"
+                                   VerticalAlignment="Center" />
+                        <TextBlock x:Name="PrevMonBindingText"
+                                   Grid.Column="1"
+                                   FontFamily="{DynamicResource Font.Mono}"
+                                   FontSize="9.5"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Brush.Muted}"
+                                   Text="Win Alt ←" />
+                    </Grid>
+                </Button>
+
+                <Button x:Name="NextMonButton"
+                        Style="{StaticResource TrayMenuItemButton}"
+                        Click="NextMonButton_Click">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Move to next monitor"
+                                   VerticalAlignment="Center" />
+                        <TextBlock x:Name="NextMonBindingText"
+                                   Grid.Column="1"
+                                   FontFamily="{DynamicResource Font.Mono}"
+                                   FontSize="9.5"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Brush.Muted}"
+                                   Text="Win Alt →" />
+                    </Grid>
+                </Button>
+
+                <!-- ── Divider ────────────────────────────────────────────── -->
+                <Border Height="1"
+                        Background="{DynamicResource Brush.Border}"
+                        Margin="2,4" />
+
+                <!-- ── Toggle Actions ─────────────────────────────────────── -->
+                <Button x:Name="IgnoreAppButton"
+                        Style="{StaticResource TrayMenuItemButton}"
+                        Click="IgnoreAppButton_Click">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="IgnoreAppLabel"
+                                   Text="Ignore this app"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" />
+                        <Border x:Name="IgnoreAppCheck"
+                                Grid.Column="1"
+                                Width="15"
+                                Height="15"
+                                CornerRadius="4"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource Brush.Border}"
+                                Background="Transparent"
+                                VerticalAlignment="Center">
+                            <Path x:Name="IgnoreAppCheckIcon"
+                                  Width="9"
+                                  Height="9"
+                                  Stretch="Uniform"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  Stroke="{DynamicResource Brush.Surface}"
+                                  StrokeThickness="2"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round"
+                                  Visibility="Collapsed"
+                                  Data="M1 5l3 3L9 1" />
+                        </Border>
+                    </Grid>
+                </Button>
+
+                <Button x:Name="AutostartButton"
+                        Style="{StaticResource TrayMenuItemButton}"
+                        Click="AutostartButton_Click">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Start when I log in"
+                                   VerticalAlignment="Center" />
+                        <Border x:Name="AutostartCheck"
+                                Grid.Column="1"
+                                Width="15"
+                                Height="15"
+                                CornerRadius="4"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource Brush.Border}"
+                                Background="Transparent"
+                                VerticalAlignment="Center">
+                            <Path x:Name="AutostartCheckIcon"
+                                  Width="9"
+                                  Height="9"
+                                  Stretch="Uniform"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  Stroke="{DynamicResource Brush.Surface}"
+                                  StrokeThickness="2"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round"
+                                  Visibility="Collapsed"
+                                  Data="M1 5l3 3L9 1" />
+                        </Border>
+                    </Grid>
+                </Button>
+
+                <!-- ── Divider ────────────────────────────────────────────── -->
+                <Border Height="1"
+                        Background="{DynamicResource Brush.Border}"
+                        Margin="2,4" />
+
+                <!-- ── Settings & Quit ────────────────────────────────────── -->
+                <Button x:Name="SettingsButton"
+                        Style="{StaticResource TrayMenuItemButton}"
+                        Click="SettingsButton_Click">
+                    <TextBlock Text="Settings…" VerticalAlignment="Center" />
+                </Button>
+
+                <Button x:Name="QuitButton"
+                        Style="{StaticResource TrayMenuDangerButton}"
+                        Click="QuitButton_Click">
+                    <TextBlock Text="Quit" VerticalAlignment="Center" />
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

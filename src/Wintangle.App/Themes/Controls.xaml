@@ -61,8 +61,7 @@
 
     <!-- ── Tab rail button ──────────────────────────────────────────────── -->
     <!-- 17px icon Path + 14px/500 label; hover FgSoft/Fg; checked AccentSoft
-         bg + Accent fg + 600. Template renders the icon from TabButton.Icon
-         plus the ContentPresenter (the label). -->
+         bg + Accent fg + 600 + subtle active glow. -->
     <Style x:Key="TabButton" TargetType="{x:Type controls:TabButton}">
         <Setter Property="Foreground" Value="{DynamicResource Brush.Muted}" />
         <Setter Property="FontSize" Value="14" />
@@ -74,6 +73,8 @@
                 <ControlTemplate TargetType="{x:Type controls:TabButton}">
                     <Border x:Name="Root"
                             Background="Transparent"
+                            BorderBrush="Transparent"
+                            BorderThickness="1"
                             CornerRadius="8"
                             Padding="12,9">
                         <StackPanel Orientation="Horizontal">
@@ -100,8 +101,17 @@
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.AccentBorder45}" />
                             <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
                             <Setter Property="FontWeight" Value="SemiBold" />
+                            <Setter TargetName="Root" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="6"
+                                                      ShadowDepth="0"
+                                                      Opacity="0.25"
+                                                      Color="{DynamicResource Color.AccentGlow}" />
+                                </Setter.Value>
+                            </Setter>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -160,6 +170,9 @@
                             <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.FgHoverBorder}" />
                             <Setter Property="Foreground" Value="{DynamicResource Brush.Fg}" />
                         </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                        </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -180,8 +193,7 @@
 
     <!-- ── Slot preset card ─────────────────────────────────────────────── -->
     <!-- Hover → FgSoft bg + FgHoverBorder border; selected (last applied) →
-         Accent border + AccentSoft bg. The keycap chips inside follow the
-         selected state via SlotKeycap / SlotKeycapText. -->
+         Accent border + AccentSoft bg + subtle AccentGlow drop-shadow. -->
     <Style x:Key="SlotCard" TargetType="{x:Type controls:SlotCard}">
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Background" Value="Transparent" />
@@ -208,6 +220,17 @@
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                            <Setter TargetName="Root" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="8"
+                                                      ShadowDepth="0"
+                                                      Opacity="0.32"
+                                                      Color="{DynamicResource Color.AccentGlow}" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -269,6 +292,9 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.FgHoverBorder}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -370,6 +396,9 @@
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.FgSoft}" />
                             <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.FgHoverBorder}" />
                         </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                        </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -440,7 +469,7 @@
         <Setter Property="Margin" Value="0,8,0,0" />
     </Style>
 
-    <!-- ── App text box (mono, bg fill, accent focus border) ────────────── -->
+    <!-- ── App text box (mono, bg fill, accent focus border + ring) ─────── -->
     <!-- Shared chrome for the gap number boxes and the ignored-apps input:
          mono 13px, Bg fill, Border hairline, 7px radius, Accent border on
          focus. A placeholder (consumers set Tag) shows while Text is empty.
@@ -480,6 +509,14 @@
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                            <Setter TargetName="Root" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="6"
+                                                      ShadowDepth="0"
+                                                      Opacity="0.35"
+                                                      Color="{DynamicResource Color.AccentGlow}" />
+                                </Setter.Value>
+                            </Setter>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -536,8 +573,15 @@
                                         <ControlTemplate TargetType="Thumb">
                                             <Border Background="{DynamicResource Brush.Surface}"
                                                     BorderBrush="{DynamicResource Brush.Accent}"
-                                                    BorderThickness="1"
-                                                    CornerRadius="999" />
+                                                    BorderThickness="1.5"
+                                                    CornerRadius="999">
+                                                <Border.Effect>
+                                                    <DropShadowEffect BlurRadius="4"
+                                                                      ShadowDepth="1"
+                                                                      Opacity="0.25"
+                                                                      Color="{DynamicResource Color.Shadow}" />
+                                                </Border.Effect>
+                                            </Border>
                                         </ControlTemplate>
                                     </Thumb.Template>
                                 </Thumb>
@@ -551,8 +595,7 @@
 
     <!-- ── Theme card (Appearance group) ────────────────────────────────── -->
     <!-- Dot + name + note; hover → FgHoverBorder; selected (current theme) →
-         Accent border + AccentSoft bg. The dot/title/note are built by
-         ThemeCard; the template wraps them with the card chrome. -->
+         Accent border + AccentSoft bg + subtle AccentGlow. -->
     <Style x:Key="ThemeCard" TargetType="{x:Type controls:ThemeCard}">
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Background" Value="Transparent" />
@@ -579,6 +622,17 @@
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+                            <Setter TargetName="Root" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="8"
+                                                      ShadowDepth="0"
+                                                      Opacity="0.30"
+                                                      Color="{DynamicResource Color.AccentGlow}" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -614,7 +668,7 @@
                                 <DropShadowEffect BlurRadius="3"
                                                   ShadowDepth="1"
                                                   Opacity="0.35"
-                                                  Color="Black" />
+                                                  Color="{DynamicResource Color.Shadow}" />
                             </Border.Effect>
                             <Border.RenderTransform>
                                 <TranslateTransform x:Name="KnobTranslate" X="0" />
@@ -658,6 +712,9 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.DangerSoft}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Danger}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

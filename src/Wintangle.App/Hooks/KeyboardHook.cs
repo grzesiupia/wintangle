@@ -15,7 +15,7 @@ namespace Wintangle.App.Hooks;
 /// on the hook thread. Unmatched keys fall through via CallNextHookEx.
 /// Shutdown posts WM_QUIT to the hook thread's queue and unhooks.
 /// </remarks>
-internal sealed class KeyboardHook
+internal sealed class KeyboardHook : IDisposable
 {
     /// <summary>
     /// GC root for the native callback: the delegate must stay alive for as
@@ -144,6 +144,12 @@ internal sealed class KeyboardHook
         }
 
         _thread = null;
+    }
+
+    public void Dispose()
+    {
+        Stop();
+        _installSignal.Dispose();
     }
 
     private void ThreadMain()

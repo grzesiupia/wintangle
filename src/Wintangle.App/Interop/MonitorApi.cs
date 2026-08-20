@@ -35,6 +35,13 @@ internal static class MonitorApi
     internal static extern bool GetMonitorInfoW(IntPtr hMonitor, ref MONITORINFOEX lpmi);
 
     /// <summary>
+    /// Returns a handle to the display that contains a given point
+    /// (dwFlags = MONITOR_DEFAULTTONEAREST).
+    /// </summary>
+    [DllImport("user32.dll")]
+    internal static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+
+    /// <summary>
     /// Returns a handle to the display that has the largest area of
     /// intersection with the given window's bounding rectangle
     /// (dwFlags = MONITOR_DEFAULTTONEAREST).

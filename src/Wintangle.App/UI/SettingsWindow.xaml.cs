@@ -351,6 +351,7 @@ public partial class SettingsWindow : Window
     private void Teardown()
     {
         _config.ThemeChanged -= OnThemeChanged;
+        _hook.RecordingMode = false;
         _layoutsPanel?.Teardown();
         _shortcutsPanel?.Teardown();
         _settingsPanel?.Teardown();

@@ -143,15 +143,19 @@ internal sealed class ConfigService : IDisposable
             return;
         }
 
+        ConfigModel? updated = null;
         lock (_lock)
         {
-            if (_current.IgnoredApps.Any(a => RuntimeState.NormalizeProcessName(a) == key))
+            if (!_current.IgnoredApps.Any(a => RuntimeState.NormalizeProcessName(a) == key))
             {
-                return;
+                var list = _current.IgnoredApps.Append(key + ".exe").ToList();
+                updated = _current with { IgnoredApps = list };
             }
+        }
 
-            var updated = _current.IgnoredApps.Append(key + ".exe").ToList();
-            SaveAndApply(_current with { IgnoredApps = updated });
+        if (updated != null)
+        {
+            SaveAndApply(updated);
         }
     }
 
@@ -163,13 +167,16 @@ internal sealed class ConfigService : IDisposable
             return;
         }
 
+        ConfigModel updated;
         lock (_lock)
         {
-            var updated = _current.IgnoredApps
+            var list = _current.IgnoredApps
                 .Where(a => RuntimeState.NormalizeProcessName(a) != key)
                 .ToList();
-            SaveAndApply(_current with { IgnoredApps = updated });
+            updated = _current with { IgnoredApps = list };
         }
+
+        SaveAndApply(updated);
     }
 
     // ---- Autostart (config = source of truth; registry = mechanism) ----
@@ -180,10 +187,13 @@ internal sealed class ConfigService : IDisposable
     /// <summary>Persists the autostart flag in the config and mirrors it to the registry.</summary>
     public void SetAutoStart(bool enabled)
     {
+        ConfigModel updated;
         lock (_lock)
         {
-            SaveAndApply(_current with { AutoStart = enabled });
+            updated = _current with { AutoStart = enabled };
         }
+
+        SaveAndApply(updated);
 
         if (OperatingSystem.IsWindows())
         {
@@ -234,22 +244,28 @@ internal sealed class ConfigService : IDisposable
     /// <summary>Binds <paramref name="hotkey"/> to <paramref name="action"/>, replacing any existing binding for that action.</summary>
     public void SetShortcut(HotkeyAction action, Hotkey hotkey)
     {
+        ConfigModel updated;
         lock (_lock)
         {
             var shortcuts = _current.Shortcuts.Where(s => s.Action != action).ToList();
             shortcuts.Add(new ShortcutBinding(action, hotkey.VirtualKey, hotkey.Modifiers));
-            SaveAndApply(_current with { Shortcuts = shortcuts });
+            updated = _current with { Shortcuts = shortcuts };
         }
+
+        SaveAndApply(updated);
     }
 
     /// <summary>Removes a custom binding so the action falls back to its default.</summary>
     public void RestoreShortcut(HotkeyAction action)
     {
+        ConfigModel updated;
         lock (_lock)
         {
             var shortcuts = _current.Shortcuts.Where(s => s.Action != action).ToList();
-            SaveAndApply(_current with { Shortcuts = shortcuts });
+            updated = _current with { Shortcuts = shortcuts };
         }
+
+        SaveAndApply(updated);
     }
 
     /// <summary>
@@ -269,10 +285,13 @@ internal sealed class ConfigService : IDisposable
     /// <summary>Applies new gap values live (used by the settings sliders).</summary>
     public void UpdateGaps(int windowGap, int edgeGap)
     {
+        ConfigModel updated;
         lock (_lock)
         {
-            SaveAndApply(_current with { WindowGap = windowGap, EdgeGap = edgeGap });
+            updated = _current with { WindowGap = windowGap, EdgeGap = edgeGap };
         }
+
+        SaveAndApply(updated);
     }
 
     /// <summary>
@@ -282,10 +301,13 @@ internal sealed class ConfigService : IDisposable
     public void SetTheme(string theme)
     {
         var normalized = ConfigStore.NormalizeTheme(theme);
+        ConfigModel updated;
         lock (_lock)
         {
-            SaveAndApply(_current with { Theme = normalized });
+            updated = _current with { Theme = normalized };
         }
+
+        SaveAndApply(updated);
     }
 
     /// <summary>
@@ -296,10 +318,7 @@ internal sealed class ConfigService : IDisposable
     /// </summary>
     public void RestoreDefaults()
     {
-        lock (_lock)
-        {
-            SaveAndApply(ConfigStore.Default());
-        }
+        SaveAndApply(ConfigStore.Default());
 
         if (OperatingSystem.IsWindows())
         {
@@ -407,7 +426,11 @@ internal sealed class ConfigService : IDisposable
     /// </summary>
     private void SaveAndApply(ConfigModel model)
     {
-        _current = model;
+        lock (_lock)
+        {
+            _current = model;
+        }
+
         try
         {
             ConfigStore.Save(_path, model);
@@ -431,16 +454,17 @@ internal sealed class ConfigService : IDisposable
         _state.UpdateGaps(new GapSettings(model.WindowGap, model.EdgeGap));
         _state.UpdateIgnored(BuildIgnoredSet(model.IgnoredApps));
 
-        // Theme swap + notification. Raised while the caller may be holding
-        // _lock (mutation paths such as SetTheme/RestoreDefaults run
-        // ApplyToRuntime inside the lock) or from the watcher thread (external
-        // edits). Subscribers MUST NOT block or call back into ConfigService
-        // synchronously — the current subscriber (App.ApplyTheme via Program)
-        // is non-blocking and marshals to the UI thread.
+        // Theme swap + notification. Raised strictly outside _lock.
+        string? themeToNotify = null;
         if (model.Theme != _appliedTheme)
         {
             _appliedTheme = model.Theme;
-            ThemeChanged?.Invoke(model.Theme);
+            themeToNotify = model.Theme;
+        }
+
+        if (themeToNotify != null)
+        {
+            ThemeChanged?.Invoke(themeToNotify);
         }
     }
 
