@@ -124,6 +124,9 @@ public partial class TrayMenuWindow : Window
         var nextHotkey = _config.GetShortcut(HotkeyAction.NextMonitor);
         NextMonBindingText.Text = nextHotkey is { } n ? HotkeyLabels.Format(n) : DefaultHotkeys.Format(HotkeyAction.NextMonitor);
 
+        var fullscreenHotkey = _config.GetShortcut(HotkeyAction.Fullscreen);
+        FullscreenBindingText.Text = fullscreenHotkey is { } f ? HotkeyLabels.Format(f) : DefaultHotkeys.Format(HotkeyAction.Fullscreen);
+
         // 3. Update Ignore app item
         if (_foregroundProcess != null)
         {
@@ -274,6 +277,12 @@ public partial class TrayMenuWindow : Window
     {
         Dismiss();
         _apply(HotkeyAction.PrevMonitor, _state.Gaps);
+    }
+
+    private void FullscreenButton_Click(object sender, RoutedEventArgs e)
+    {
+        Dismiss();
+        _apply(HotkeyAction.Fullscreen, _state.Gaps);
     }
 
     private void NextMonButton_Click(object sender, RoutedEventArgs e)

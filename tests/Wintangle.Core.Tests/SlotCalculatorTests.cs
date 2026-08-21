@@ -235,6 +235,28 @@ public class SlotCalculatorTests
     }
 
     [Fact]
+    public void Fullscreen_FillsWorkArea_WithEdgeGapOnAllFourSides()
+    {
+        var work = new Rectangle(0, 0, 1920, 1080);
+        var gaps = Gaps(8, 8);
+
+        var rect = SlotCalculator.ComputeSlot(work, SlotLayout.Fullscreen, gaps);
+
+        Assert.Equal(new Rectangle(8, 8, 1904, 1064), rect);
+    }
+
+    [Fact]
+    public void Fullscreen_ZeroEdgeGap_FillsWorkAreaExactly()
+    {
+        var work = new Rectangle(0, 0, 1920, 1080);
+        var gaps = Gaps(8, 0);
+
+        var rect = SlotCalculator.ComputeSlot(work, SlotLayout.Fullscreen, gaps);
+
+        Assert.Equal(work, rect);
+    }
+
+    [Fact]
     public void DegenerateSmallWorkArea_DoesNotThrow_ReturnsAtLeast1Px()
     {
         var work = new Rectangle(0, 0, 10, 10);

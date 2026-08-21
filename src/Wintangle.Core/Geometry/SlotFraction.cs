@@ -5,9 +5,9 @@ namespace Wintangle.Core.Geometry;
 /// <summary>
 /// Fractional slot geometry shared by the settings window's DESIGN preview and
 /// the real tiling math (<see cref="SlotCalculator"/> delegates to
-/// <see cref="GetFraction"/>). The 16 f-values map 1:1 to the exported design
-/// (wintangle-app.html SLOTS array) and drive the live preview rectangle drawn
-/// on the desktop mock.
+/// <see cref="GetFraction"/>). The 17 f-values (one per
+/// <see cref="SlotLayout"/> slot) drive the live preview rectangle drawn on
+/// the desktop mock.
 /// </summary>
 /// <remarks>
 /// The per-edge rule — an edge touches the boundary with the edge gap, an
@@ -42,6 +42,7 @@ public static class SlotFraction
         SlotLayout.SixthBottomLeft => (0, 0.5, 1d / 3, 1),
         SlotLayout.SixthBottomCenter => (1d / 3, 0.5, 2d / 3, 1),
         SlotLayout.SixthBottomRight => (2d / 3, 0.5, 1, 1),
+        SlotLayout.Fullscreen => (0, 0, 1, 1),
 
         _ => throw new ArgumentOutOfRangeException(nameof(layout), layout, "Unknown slot layout."),
     };

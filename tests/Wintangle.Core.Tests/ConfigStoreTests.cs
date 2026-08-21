@@ -420,11 +420,11 @@ public class ConfigStoreTests : IDisposable
     }
 
     [Fact]
-    public void All18Actions_RoundTrip()
+    public void All19Actions_RoundTrip()
     {
         var path = ConfigPath();
         var actions = Enum.GetValues<HotkeyAction>();
-        Assert.Equal(18, actions.Length);
+        Assert.Equal(19, actions.Length);
 
         var config = new ConfigModel
         {
@@ -438,6 +438,24 @@ public class ConfigStoreTests : IDisposable
 
         Assert.Equal(actions.Length, loaded.Shortcuts.Count);
         Assert.Equal(actions, loaded.Shortcuts.Select(s => s.Action).ToArray());
+    }
+
+    [Fact]
+    public void FullscreenAction_RoundTrip_ViaStringName()
+    {
+        var path = ConfigPath();
+        File.WriteAllText(path, """
+            {
+              "shortcuts": [
+                { "action": "Fullscreen", "virtualKey": 13, "modifiers": 5 }
+              ]
+            }
+            """);
+
+        var model = ConfigStore.Load(path);
+
+        var shortcut = Assert.Single(model.Shortcuts);
+        Assert.Equal(new ShortcutBinding(HotkeyAction.Fullscreen, 0x0D, KeyModifiers.Ctrl | KeyModifiers.Win), shortcut);
     }
 
     [Fact]

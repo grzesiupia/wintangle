@@ -9,6 +9,9 @@ public static class VirtualKey
     public const byte VK_LEFT = 0x25;
     public const byte VK_RIGHT = 0x27;
 
+    /// <summary>Enter</summary>
+    public const byte VK_RETURN = 0x0D;
+
     public const byte VK_I = 0x49;
     public const byte VK_J = 0x4A;
     public const byte VK_K = 0x4B;
