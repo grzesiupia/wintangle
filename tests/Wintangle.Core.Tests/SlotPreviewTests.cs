@@ -4,7 +4,7 @@ using Wintangle.Core.Geometry;
 namespace Wintangle.Core.Tests;
 
 /// <summary>
-/// Design-preview math: the 16 fraction table and the gap/edge preview
+/// Design-preview math: the 17 fraction table and the gap/edge preview
 /// rectangle formula. Both the preview and the real tiling math share the same
 /// per-edge rule — <see cref="SlotCalculator"/> delegates to
 /// <see cref="SlotFraction"/> — so these tests cover the rule the tiler uses
@@ -15,7 +15,7 @@ public class SlotPreviewTests
     [Fact]
     public void GetFraction_AllSlotLayouts()
     {
-        // The 16 f-values from the design's SLOTS table (wintangle-app.html),
+        // The 17 f-values from the design's SLOTS table (wintangle-app.html),
         // in enum order so a reorder can never silently re-wire a slot.
         var expected = new Dictionary<SlotLayout, (double L, double T, double R, double B)>
         {
@@ -39,9 +39,10 @@ public class SlotPreviewTests
             [SlotLayout.SixthBottomLeft] = (0, 0.5, 1d / 3, 1),
             [SlotLayout.SixthBottomCenter] = (1d / 3, 0.5, 2d / 3, 1),
             [SlotLayout.SixthBottomRight] = (2d / 3, 0.5, 1, 1),
+            [SlotLayout.Fullscreen] = (0, 0, 1, 1),
         };
 
-        Assert.Equal(16, Enum.GetValues<SlotLayout>().Length);
+        Assert.Equal(17, Enum.GetValues<SlotLayout>().Length);
 
         foreach (var (layout, fraction) in expected)
         {

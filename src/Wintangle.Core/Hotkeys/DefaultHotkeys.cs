@@ -2,7 +2,7 @@ namespace Wintangle.Core.Hotkeys;
 
 /// <summary>
 /// The default hotkey table — this is the specification for the default
-/// keybindings. All 16 slot actions use Ctrl+Win; monitor moves use Win+Alt.
+/// keybindings. All 17 slot actions use Ctrl+Win; monitor moves use Win+Alt.
 /// </summary>
 public static class DefaultHotkeys
 {
@@ -70,6 +70,8 @@ public static class DefaultHotkeys
             new(new Hotkey(VirtualKey.VK_J, ctrlWin), HotkeyAction.SixthBottomLeft),
             new(new Hotkey(VirtualKey.VK_K, ctrlWin), HotkeyAction.SixthBottomCenter),
             new(new Hotkey(VirtualKey.VK_L, ctrlWin), HotkeyAction.SixthBottomRight),
+
+            new(new Hotkey(VirtualKey.VK_RETURN, ctrlWin), HotkeyAction.Fullscreen),
 
             new(new Hotkey(VirtualKey.VK_LEFT, winAlt), HotkeyAction.PrevMonitor),
             new(new Hotkey(VirtualKey.VK_RIGHT, winAlt), HotkeyAction.NextMonitor),

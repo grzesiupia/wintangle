@@ -283,7 +283,7 @@
             <StackPanel>
                 <TextBlock Style="{DynamicResource SGroupHead}" Text="Restore defaults" />
                 <TextBlock Style="{DynamicResource PaneSub}"
-                           Text="Reset gaps (8 / 0), all 18 shortcuts, autostart and the ignored-app list. Requires confirmation." />
+                           Text="Reset gaps (8 / 0), all 19 shortcuts, autostart and the ignored-app list. Requires confirmation." />
                 <Button x:Name="RestoreDefaultsButton"
                         Style="{DynamicResource DangerOutlineButton}"
                         Content="Restore defaults…"

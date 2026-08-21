@@ -85,6 +85,7 @@ public static class HotkeyLabels
         0x26 => "↑",      // VK_UP
         0x27 => "→",      // VK_RIGHT
         0x28 => "↓",      // VK_DOWN
+        0x0D => "Enter",  // VK_RETURN
         0x2E => "Del",    // VK_DELETE
         0x20 => "Space",  // VK_SPACE
         _ => PrintableKey(vk),
@@ -118,6 +119,7 @@ public static class HotkeyLabels
         0x26 => "Up",
         0x27 => "Right",
         0x28 => "Down",
+        0x0D => "Enter",
         0xBA => ";",
         0xBB => "=",
         0xBC => ",",

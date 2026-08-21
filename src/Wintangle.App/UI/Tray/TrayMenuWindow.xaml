@@ -146,6 +146,27 @@
                 <!-- ── 2-Column Slot Grid ─────────────────────────────────── -->
                 <UniformGrid x:Name="SlotGrid" Columns="2" Margin="0,0,0,2" />
 
+                <!-- ── Fullscreen ─────────────────────────────────────────── -->
+                <Button x:Name="FullscreenButton"
+                        Style="{StaticResource TrayMenuItemButton}"
+                        Click="FullscreenButton_Click">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Fullscreen"
+                                   VerticalAlignment="Center" />
+                        <TextBlock x:Name="FullscreenBindingText"
+                                   Grid.Column="1"
+                                   FontFamily="{DynamicResource Font.Mono}"
+                                   FontSize="9.5"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Brush.Muted}"
+                                   Text="Ctrl Win Enter" />
+                    </Grid>
+                </Button>
+
                 <!-- ── Divider ────────────────────────────────────────────── -->
                 <Border Height="1"
                         Background="{DynamicResource Brush.Border}"

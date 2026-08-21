@@ -25,6 +25,7 @@ internal static class UiLabels
         HotkeyAction.SixthBottomLeft => "Bottom-Left Sixth",
         HotkeyAction.SixthBottomCenter => "Bottom-Center Sixth",
         HotkeyAction.SixthBottomRight => "Bottom-Right Sixth",
+        HotkeyAction.Fullscreen => "Fullscreen",
         _ => action.ToString(),
     };
 
@@ -40,6 +41,7 @@ internal static class UiLabels
         HotkeyAction.ThirdLeft or HotkeyAction.ThirdCenter or HotkeyAction.ThirdRight => "third",
         HotkeyAction.SixthTopLeft or HotkeyAction.SixthTopCenter or HotkeyAction.SixthTopRight
             or HotkeyAction.SixthBottomLeft or HotkeyAction.SixthBottomCenter or HotkeyAction.SixthBottomRight => "sixth",
+        HotkeyAction.Fullscreen => "fullscreen",
         HotkeyAction.PrevMonitor or HotkeyAction.NextMonitor => "monitor",
         _ => string.Empty,
     };

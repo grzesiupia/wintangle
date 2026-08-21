@@ -28,4 +28,7 @@ public enum SlotLayout
     SixthBottomLeft,
     SixthBottomCenter,
     SixthBottomRight,
+
+    /// <summary>Full work area (0,0,1,1) — every edge touches the boundary, so the edge gap applies on all four sides.</summary>
+    Fullscreen,
 }

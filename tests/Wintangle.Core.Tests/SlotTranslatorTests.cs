@@ -59,6 +59,30 @@ public class SlotTranslatorTests
     }
 
     [Fact]
+    public void TranslateSlot_FullscreenRect_AcrossEqualWorkAreas_IsIdentity()
+    {
+        var oldWork = new Rectangle(0, 0, 1920, 1080);
+        var newWork = new Rectangle(3840, 0, 1920, 1080); // same size, shifted origin
+        var oldRect = new Rectangle(8, 8, 1904, 1064);
+
+        var translated = SlotTranslator.TranslateSlot(oldWork, newWork, oldRect);
+
+        Assert.Equal(new Rectangle(3848, 8, 1904, 1064), translated);
+    }
+
+    [Fact]
+    public void TranslateSlot_FullscreenRect_AcrossDifferentSizedWorkAreas_ScalesToFill()
+    {
+        var oldWork = new Rectangle(0, 0, 1920, 1080);
+        var newWork = new Rectangle(0, 0, 3840, 2160); // 2× scale
+        var oldRect = new Rectangle(8, 8, 1904, 1064);
+
+        var translated = SlotTranslator.TranslateSlot(oldWork, newWork, oldRect);
+
+        Assert.Equal(new Rectangle(16, 16, 3808, 2128), translated);
+    }
+
+    [Fact]
     public void ClampToWorkArea_RectFullyInside_IsUnchanged()
     {
         var rect = new Rectangle(100, 100, 200, 200);

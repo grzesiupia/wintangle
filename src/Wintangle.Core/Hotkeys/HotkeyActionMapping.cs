@@ -6,7 +6,7 @@ namespace Wintangle.Core.Hotkeys;
 public static class HotkeyActionMapping
 {
     /// <summary>
-    /// The slot layout for the 16 slot actions, or null for the monitor-move
+    /// The slot layout for the 17 slot actions, or null for the monitor-move
     /// actions (<see cref="HotkeyAction.PrevMonitor"/> /
     /// <see cref="HotkeyAction.NextMonitor"/>), which are handled separately.
     /// </summary>
@@ -32,6 +32,7 @@ public static class HotkeyActionMapping
         HotkeyAction.SixthBottomLeft => SlotLayout.SixthBottomLeft,
         HotkeyAction.SixthBottomCenter => SlotLayout.SixthBottomCenter,
         HotkeyAction.SixthBottomRight => SlotLayout.SixthBottomRight,
+        HotkeyAction.Fullscreen => SlotLayout.Fullscreen,
 
         HotkeyAction.PrevMonitor or HotkeyAction.NextMonitor => null,
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "Unknown hotkey action."),

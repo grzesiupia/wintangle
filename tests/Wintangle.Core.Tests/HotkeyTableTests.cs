@@ -1,3 +1,4 @@
+using Wintangle.Core.Geometry;
 using Wintangle.Core.Hotkeys;
 
 namespace Wintangle.Core.Tests;
@@ -26,6 +27,7 @@ public class HotkeyTableTests
         { 0x4A, CtrlWin, HotkeyAction.SixthBottomLeft },                   // J
         { 0x4B, CtrlWin, HotkeyAction.SixthBottomCenter },                 // K
         { 0x4C, CtrlWin, HotkeyAction.SixthBottomRight },                  // L
+        { 0x0D, CtrlWin, HotkeyAction.Fullscreen },                        // Enter
         { 0x25, WinAlt, HotkeyAction.PrevMonitor },                        // Win+Alt+Left
         { 0x27, WinAlt, HotkeyAction.NextMonitor },                        // Win+Alt+Right
     };
@@ -41,10 +43,10 @@ public class HotkeyTableTests
     }
 
     [Fact]
-    public void DefaultTable_HasExactly18Bindings()
+    public void DefaultTable_HasExactly19Bindings()
     {
-        Assert.Equal(18, DefaultHotkeys.Create().Count);
-        Assert.Equal(18, Enum.GetValues<HotkeyAction>().Length);
+        Assert.Equal(19, DefaultHotkeys.Create().Count);
+        Assert.Equal(19, Enum.GetValues<HotkeyAction>().Length);
     }
 
     [Fact]
@@ -60,6 +62,7 @@ public class HotkeyTableTests
     [InlineData(0x25)] // Left with wrong modifiers
     [InlineData(0xDB)]
     [InlineData(0x49)]
+    [InlineData(0x0D)]
     public void TryMatch_WrongModifiers_NoMatch(byte vk)
     {
         var table = DefaultHotkeys.Create();
@@ -157,6 +160,7 @@ public class HotkeyTableTests
         Assert.Equal(new Hotkey(0x25, WinAlt), DefaultHotkeys.FindHotkey(HotkeyAction.PrevMonitor));
         Assert.Equal(new Hotkey(0x27, WinAlt), DefaultHotkeys.FindHotkey(HotkeyAction.NextMonitor));
         Assert.Equal(new Hotkey(0x4C, CtrlWin), DefaultHotkeys.FindHotkey(HotkeyAction.SixthBottomRight));
+        Assert.Equal(new Hotkey(0x0D, CtrlWin), DefaultHotkeys.FindHotkey(HotkeyAction.Fullscreen));
     }
 
     [Fact]
@@ -167,6 +171,7 @@ public class HotkeyTableTests
         Assert.Equal("Ctrl+Win+[", DefaultHotkeys.Format(HotkeyAction.QuarterTopLeft));
         Assert.Equal("Ctrl+Win+;", DefaultHotkeys.Format(HotkeyAction.QuarterBottomLeft));
         Assert.Equal("Ctrl+Win+Right", DefaultHotkeys.Format(HotkeyAction.HalfRight));
+        Assert.Equal("Ctrl+Win+Enter", DefaultHotkeys.Format(HotkeyAction.Fullscreen));
     }
 
     [Fact]
@@ -229,7 +234,7 @@ public class HotkeyTableTests
     }
 
     [Fact]
-    public void SlotMapping_CoversAll16Slots_AndExcludesMonitorMoves()
+    public void SlotMapping_CoversAllSlotActions_AndExcludesMonitorMoves()
     {
         foreach (var action in Enum.GetValues<HotkeyAction>())
         {
@@ -242,5 +247,7 @@ public class HotkeyTableTests
                 Assert.NotNull(action.ToSlotLayout());
             }
         }
+
+        Assert.Equal(SlotLayout.Fullscreen, HotkeyAction.Fullscreen.ToSlotLayout());
     }
 }

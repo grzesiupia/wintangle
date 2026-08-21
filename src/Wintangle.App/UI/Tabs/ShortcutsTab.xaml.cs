@@ -11,7 +11,7 @@ using Wintangle.Core.Hotkeys;
 namespace Wintangle.App.UI.Tabs;
 
 /// <summary>
-/// Keyboard Shortcuts tab (Phase 3): one row per action (18 rows in
+/// Keyboard Shortcuts tab (Phase 3): one row per action (19 rows in
 /// <see cref="DefaultHotkeys.Entries"/> order) — name + group label, an inline
 /// recorder (keycap chips + Record/Cancel), and a restore-default button. Rows
 /// are rebuilt from the config via <see cref="Rebuild"/> (tab activation,
